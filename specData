@@ -122,7 +122,7 @@ for window in range(int(np.floor_divide(f.nframes, fourier_step))):
 # Have spectrum data in array, yay!!!!
 
 # average the shit into w/e number of bands
-a = [log_averages(s, fourier_window, f.samplerate, bands)) for s in spectrum_data]
+a = [log_averages(s, fourier_window, f.samplerate, bands) for s in spectrum_data]
 
 
 # we are going to write to a file
