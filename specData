@@ -10,6 +10,10 @@ from scikits.audiolab import Sndfile
 from pprint import pprint
 import sys
 
+# number of bands
+bands = 50 
+
+
 def fft(samples):
     #abs of fast fourier transform
     f = np.fft.rfft(samples)
@@ -94,16 +98,17 @@ fourier_step = np.multiply(np.reciprocal(fouriers_per_second), f.samplerate)
 #print "#:", np.true_divide(f.nframes,fourier_step)
 #print "window_size:",fourier_window
 #print "n frames:",f.nframes
-##
+
+# just simplify it, lol
 one_channel = 1 if f.channels == 1 else 0
 
+# go through parts of file, chunk by chunk, with seeks
 i=0
 spectrum_data = []
 for window in range(int(np.floor_divide(f.nframes, fourier_step))):
     f.seek(i)
     if one_channel:
         chunk = f.read_frames(fourier_window)
-
     else:
 
         #average the channels
@@ -112,38 +117,46 @@ for window in range(int(np.floor_divide(f.nframes, fourier_step))):
             avg = np.true_divide(np.sum(frame), fourier_window)
             chunk.append(avg)
     
-    #fft the samples
-    #print chunk
     spectrum_data.append(fft(chunk))
-    #print fft(chunk)
     i+=fourier_step
-########## Have spectrum data in array
+# Have spectrum data in array, yay!!!!
 
-#print len(spectrum_data), len(spectrum_data[1])
-#pprint(spectrum_data)
-a = []
-for s in spectrum_data:
-    a.append(log_averages(s, fourier_window, f.samplerate, 50))
+# average the shit into w/e number of bands
+a = [log_averages(s, fourier_window, f.samplerate, bands)) for s in spectrum_data]
 
 
-## scale and dump the shit in js
+# we are going to write to a file
 import json
 from StringIO import StringIO
 fp = StringIO()
+
+# write part of desired format, 
+# probably can do this through json.dump
+# but fucked if i know how
 fp.write("data[0] = {title: 'blar', timecode: [")
-time_step = int(((f.nframes / f.samplerate) / fourier_step) * 1000)
+
+# calculate very roughly millisecond difference b/w each sample
+time_step = round(((f.nframes / f.samplerate) / fourier_step) * 1000)
+
 for k,v in enumerate(a):
+    # calculte time (in ms) for each sample
     time = k * time_step
+
+    #scale values to between 0-255
     t = v.min()
     scale = float(255) / (v.max() - t)
     tmp = np.subtract(v,t)
     tmp = np.multiply(tmp, scale)
     tmp = np.round(tmp)
     tmp = np.asarray(tmp,dtype=int)
+
+    # write to file object
     json.dump({'p':tmp.tolist(),'t':time},fp)
 
 fp.write("]};")
 contents = fp.getvalue()
 fp.close()
+
+# write to file
 with open("/home/cz/d.txt", "w") as p:
     p.write(contents)
