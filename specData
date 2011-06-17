@@ -126,7 +126,7 @@ for s in spectrum_data:
     a.append(log_averages(s, fourier_window, f.samplerate, 50))
 
 
-## dump the shit in json
+## scale and dump the shit in js
 import json
 from StringIO import StringIO
 fp = StringIO()
