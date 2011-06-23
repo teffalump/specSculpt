@@ -12,7 +12,7 @@ import sys
 ####### VARIABLES/FUNCTIONS OF DOOM
 
 #for future, pass the uri to the script
-audio_file = "/home/cz/test.ogg"
+audio_file = "/home/cz/test.wav"
 
 # number of bands
 bands = 50 
@@ -124,7 +124,7 @@ a = [log_averages(s, fourier_window, f.samplerate, bands) for s in spectrum_data
 
 
 # we are going to write to a file
-import json
+#import json
 from StringIO import StringIO
 fp = StringIO()
 
@@ -136,9 +136,12 @@ fp.write("data[0] = {title: 'blar', timecode: [")
 # calculate very roughly millisecond difference b/w each sample
 time_step = ((f.nframes / f.samplerate) / fourier_step) * 1000
 
+# time window for each sample set
+window_time = ((f.nframes / f.samplerate) / fourier_window) * 1000
+
 for k,v in enumerate(a):
     # calculte time (in ms) for each sample
-    time = int(round((k + .5) * time_step))
+    time = int(round((k * time_step) + (.5 * window_time)))
 
     #scale values to between 0-255
     t = v.min()
@@ -149,7 +152,11 @@ for k,v in enumerate(a):
     tmp = np.asarray(tmp,dtype=int)
 
     # write to file object
-    json.dump({'t':time,'p':tmp.tolist()},fp)
+    fp.write('{t:' + str(time) + ',p:' + str(tmp.tolist()) + '}')
+    if k == len(a) - 1:
+        continue
+    else:
+        fp.write(',')
 
 fp.write("]};")
 contents = fp.getvalue()
