@@ -93,11 +93,12 @@ f = Sndfile(audio_file, "r")
 fourier_step = np.multiply(np.reciprocal(fouriers_per_second), f.samplerate)
 
 # print the info, if one wants
-#print "samplerate:",f.samplerate
-#print "total frames:",f.nframes
-#print "window_size:",fourier_window
-#print "# of ffts:", np.true_divide(f.nframes,fourier_step)
-#print "step:",fourier_step
+print "samplerate:",f.samplerate
+print "total frames:",f.nframes
+print "window_size:",fourier_window
+print "# of ffts:", np.true_divide(f.nframes,fourier_step)
+print "step:",fourier_step
+print "length:", f.nframes / f.samplerate, "seconds"
 
 # go through parts of file, chunk by chunk, with seeks
 i=0
@@ -134,14 +135,17 @@ fp = StringIO()
 fp.write("data[0] = {title: 'blar', timecode: [")
 
 # calculate very roughly millisecond difference b/w each sample
-time_step = ((f.nframes / f.samplerate) / fourier_step) * 1000
+time_step = np.reciprocal(fouriers_per_second) * 1000
+#print time_step, "ms b/w each sampling"
 
 # time window for each sample set
 window_time = ((f.nframes / f.samplerate) / fourier_window) * 1000
+#print window_time, "ms for each sample set"
 
 for k,v in enumerate(a):
     # calculte time (in ms) for each sample
-    time = int(round((k * time_step) + (.5 * window_time)))
+    time = int(round((k * time_step) + window_time))
+    print time, "milliseconds"
 
     #scale values to between 0-255
     t = v.min()
