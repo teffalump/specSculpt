@@ -12,13 +12,13 @@ import sys
 ####### VARIABLES/FUNCTIONS OF DOOM
 
 #for future, pass the uri to the script
-audio_file = "/home/cz/test.wav"
+audio_file = sys.argv[1]
 
 # number of bands
-bands = 50 
+bands = 50
 
-#fouriers per second of sample 
-fouriers_per_second = np.float(10)
+#total slices or w/e
+total_fouriers = 1000
 
 #the window size (i.e., number of samples) for each fft
 fourier_window = np.float(512)
@@ -53,7 +53,7 @@ def log_averages(spectrum, sample_size, sample_rate, bands = 12):
     sr = np.float(sample_rate)
     averages = []
     for i in range(bands):
-        avg = np.float(0)
+        #avg = np.float(0)
         if i == 0:
             low_freq = 0
         else:
@@ -67,10 +67,10 @@ def log_averages(spectrum, sample_size, sample_rate, bands = 12):
 
         #print i, (low_b, hi_b), (low_freq,high_freq)
 
-        for j in range(low_b, int(hi_b) +1):
-            avg += spectrum[j]
-        avg = np.true_divide(avg, hi_b - low_b + 1)
-        averages.append(avg)
+        #for j in range(low_b, int(hi_b) +1):
+        #    avg += spectrum[j]
+        #avg = np.true_divide(avg, hi_b - low_b + 1)
+        averages.append(np.true_divide(sum([spectrum[j] for j in range(low_b, int(hi_b) + 1)]), hi_b - low_b + 1))
 
     return np.array(averages)
 
@@ -89,21 +89,32 @@ f = Sndfile(audio_file, "r")
     #   read_frames(x) = read x number of frames, moves index
     #   seek(x) = move to frame number x
 
+# fouriers per second of sample
+fouriers_per_second = total_fouriers / (f.nframes / f.samplerate)
+#fouriers_per_second = np.float(10)
+
 #frame step between each fft
-fourier_step = np.multiply(np.reciprocal(fouriers_per_second), f.samplerate)
+fourier_step = np.floor_divide(f.nframes, total_fouriers)
+
+#print fouriers_per_second
+#sys.exit(0)
 
 # print the info, if one wants
 print "samplerate:",f.samplerate
 print "total frames:",f.nframes
 print "window_size:",fourier_window
-print "# of ffts:", np.true_divide(f.nframes,fourier_step)
+print "# of ffts:", total_fouriers
 print "step:",fourier_step
 print "length:", f.nframes / f.samplerate, "seconds"
 
 # go through parts of file, chunk by chunk, with seeks
+
+#frame starts for each fourier
+
 i=0
 spectrum_data = []
-for window in range(int(np.floor_divide(f.nframes, fourier_step))):
+for window in range(total_fouriers):
+    print "fourier #:",window, "i:",i
     f.seek(i)
     if f.channels == 1:
         chunk = f.read_frames(fourier_window)
@@ -121,7 +132,9 @@ for window in range(int(np.floor_divide(f.nframes, fourier_step))):
 # Have spectrum data in array, yay!!!!
 
 # average the shit into w/e number of bands
+print "here"
 a = [log_averages(s, fourier_window, f.samplerate, bands) for s in spectrum_data]
+print "after"
 
 
 # we are going to write to a file
@@ -135,22 +148,27 @@ fp = StringIO()
 fp.write("data[0] = {title: 'blar', timecode: [")
 
 # calculate very roughly millisecond difference b/w each sample
-time_step = np.reciprocal(fouriers_per_second) * 1000
+time_step = np.reciprocal(np.float(fouriers_per_second)) * 1000
+#print fouriers_per_second
 #print time_step, "ms b/w each sampling"
 
 # time window for each sample set
 window_time = ((f.nframes / f.samplerate) / fourier_window) * 1000
 #print window_time, "ms for each sample set"
 
+#find max value in fft
+high=np.array(a).max()
+low=np.array(a).min()
+#sys.exit(0)
+
 for k,v in enumerate(a):
     # calculte time (in ms) for each sample
-    time = int(round((k * time_step) + window_time))
+    time = int(round((k * time_step) + (.5 * window_time)))
     print time, "milliseconds"
 
     #scale values to between 0-255
-    t = v.min()
-    scale = float(255) / (v.max() - t)
-    tmp = np.subtract(v,t)
+    scale = float(255) / (high - low)
+    tmp = np.subtract(v,low)
     tmp = np.multiply(tmp, scale)
     tmp = np.round(tmp)
     tmp = np.asarray(tmp,dtype=int)
