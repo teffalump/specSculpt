@@ -11,7 +11,7 @@ import sys
 
 #### Some extra-info
 #
-#
+# human hearing ~20hz - ~20khz
 # piano is from ~27hz to ~4200hz
 #
 ####
@@ -30,23 +30,66 @@ total_fouriers = 2000
 #the window size (i.e., number of samples) for each fft
 fourier_window = np.float(1024)
 
-def bounds():
+def bounds(sample_rate):
     # define ranges of frequencies (hz) to blend
     # i could do this automatically, but w/e
-    # basically, up to ~100hz, blend into one, from 100-2000
-    # skip every 10 hz, 2k+ blend into one
-    bounds = [ 
-                [0,100],
-            ]
+    # basically, blend logarithmically
 
-    start = bounds[-1][1]
-    step = 10
-    while start < 2000:
-        bounds.append([start,start+step])
-        start += step
+    ny = sample_rate / 2
+    
+    bounds = []
+    #12 octaves
+    for i in range(12):
+        b = [ny / np.power(2,12-i), ny / np.power(2,11-i)]
 
-    bounds.append([start])
+        #split/combine some octaves
+        # octave 4 in 2
+        # octave 5 - 7 in 3
+        if i == 0:
+            bounds.append([0,0])
+            continue
+        if i == 1:
+            continue
+        if i == 2:
+            bounds[0][1] = b[1]
+            continue
+        if i == 4:
+            mid = (b[0] + b[1])/2
+            bounds.extend([[b[0], mid], [mid, b[1]]])
+            continue
+        if i in (5,6,7):
+            d = (b[1] - b[0]) / 3
+            l = b[0] + d
+            u = b[0] + 2 * d
+            bounds.extend([[b[0], l], [l, u], [u, b[1]]])
+            continue
+        
+        bounds.append(b)
+                
+    #combine first 3
+
     return bounds
+
+def freq_to_bound(sample_size, sample_rate):
+    #now I need to determine for the indices where they belong in the bounds
+    # really stupid way to do this, but wtf, I suck at coding
+
+    indices=[]
+    for j,bound in enumerate(bounds(sample_rate)):
+        inds = []
+        for i,freq in enumerate(freqs(sample_size, sample_rate)):
+            if bound[0] <= freq <= bound[1]:
+                #print freq, "w/i", bound[0], "and", bound[1]
+                #print "--> therefore,", i, "in", j
+                inds.append(i)
+            if freq > bound[1]:
+                break
+        indices.append(inds)
+
+    # now we have an array mapping fft index to
+    # blended band index
+    
+    return indices
 
 def fft(samples):
     #abs of fast fourier transform
@@ -58,9 +101,9 @@ def bandwidth(sample_size, sample_rate):
 
 def freqs(sample_size, sample_rate):
     #frequency for each index
-    f = np.true_divide(sample_rate, np.true_divide(sample_size, 2))
-    p=[k * f for k in range(int(sample_size))]
-    return p[:int(np.floor_divide(sample_size,2))+1]
+    f = np.true_divide(sample_rate, sample_size)
+    p=[k * f for k in range(int(np.floor_divide(sample_size,2) + 1))]
+    return p
 
 ####### END VARIABLES/FUNCTIONS OF DOOM
 
@@ -125,33 +168,26 @@ for window in range(total_fouriers):
 # average the shit into w/e number of bands, optimize since this is stupid slow
 # bad coding by me, really bad coding
 # i calculate the same thing over and over...stupid fucking stupid
-freq_bounds = bounds()
-freq_index = freqs(sample_size, f.sample_rate)
+freq_bounds = bounds(f.samplerate)
+freq_index = freqs(fourier_window, f.samplerate)
 
-#now I need to determine for the indices where they belong in the bounds
-# really stupid way to do this, but wtf, I suck at coding
-indices=[]
-lower = 0  #inclusive
-upper = 0  #inclusive
-for bound in freq_bounds:
-    for i,freq in enumerate(freq_index):
-        if bound[0] <= freq <= bound[1]:
-            upper = i
-    indices.append([lower,upper])
-
-            
-            
 
 #average based on indices values
+# average for each fft
 a = []
-for s in indices:
-    a.append((a, np.mean(spectrum_data[...,s[0]:s[1]+1], axis=1)))
+spectrum_data = np.array(spectrum_data)
+for s in freq_to_bound(fourier_window, f.samplerate):
+    a.append( 
+                np.mean(
+                    spectrum_data[...,s[0]:s[-1]+1], 
+                    axis=1
+                    )
+                )
 
-a = np.concatenate(a, axis=1)
-print a
+# join the values
+a = np.dstack(a)[0]
+print len(a)
 sys.exit(0)
-print "after"
-
 
 # we are going to write to a file
 #import json
