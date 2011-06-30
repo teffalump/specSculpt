@@ -73,7 +73,6 @@ def bounds(sample_rate):
 def freq_to_bound(sample_size, sample_rate):
     #now I need to determine for the indices where they belong in the bounds
     # really stupid way to do this, but wtf, I suck at coding
-
     indices=[]
     for j,bound in enumerate(bounds(sample_rate)):
         inds = []
@@ -163,16 +162,9 @@ for window in range(total_fouriers):
     spectrum_data.append(fft(chunk))
     i+=fourier_step
 
-# Have spectrum data in array, yay!!!!
+##### Have fft'd audio data in array, yay!!!!
 
-# average the shit into w/e number of bands, optimize since this is stupid slow
-# bad coding by me, really bad coding
-# i calculate the same thing over and over...stupid fucking stupid
-freq_bounds = bounds(f.samplerate)
-freq_index = freqs(fourier_window, f.samplerate)
-
-
-#average based on indices values
+##### Now we need to blend into bands
 # average for each fft
 a = []
 spectrum_data = np.array(spectrum_data)
@@ -186,10 +178,10 @@ for s in freq_to_bound(fourier_window, f.samplerate):
 
 # join the values
 a = np.dstack(a)[0]
-print len(a)
-sys.exit(0)
 
-# we are going to write to a file
+##### this part was hard to explain w/o some visuals 
+
+##### we are going to write to a file
 #import json
 from StringIO import StringIO
 fp = StringIO()
@@ -235,3 +227,5 @@ fp.close()
 # write to file
 with open("/home/cz/d.txt", "w") as p:
     p.write(contents)
+
+##### Done writing to file
