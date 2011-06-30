@@ -17,12 +17,18 @@ import sys
 ####
 
 ####### VARIABLES/FUNCTIONS OF DOOM
+### TODO
+###     deduce the proper variables
+###     from the file itself, instead
+###     of hardcoding them --- obviously
+###     code would need some direction, 
+###     but it is too myopic right now 
 
-#for future, pass the uri to the script
+#pass the uri to the script
 audio_file = sys.argv[1]
 
 #total slices or w/e
-total_fouriers = 4000
+total_fouriers = 1000
 
 #the window size (i.e., number of samples) for each fft
 fourier_window = np.float(1024)
@@ -123,13 +129,13 @@ fourier_step = np.floor_divide(f.nframes, total_fouriers)
 #sys.exit(0)
 
 # print the info, if one wants
-print "samplerate:",f.samplerate
-print "total frames:",f.nframes
-print "window_size:",fourier_window
-print "# of ffts:", total_fouriers
-print "step:",fourier_step
-print "length:", time_length, "seconds"
-
+#print "samplerate:",f.samplerate
+#print "total frames:",f.nframes
+#print "window_size:",fourier_window
+#print "# of ffts:", total_fouriers
+#print "step:",fourier_step
+#print "length:", time_length, "seconds"
+#
 # go through parts of file, chunk by chunk, with seeks
 
 #frame starts for each fourier
@@ -159,7 +165,6 @@ for window in range(total_fouriers):
 a = []
 spectrum_data = np.array(spectrum_data)
 for s in freq_to_bound(fourier_window, f.samplerate):
-    print s
     if s:
         a.append( 
                     #average every fft between bounds
