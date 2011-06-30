@@ -9,20 +9,44 @@ from functools import reduce
 from scikits.audiolab import Sndfile
 import sys
 
+#### Some extra-info
+#
+#
+# piano is from ~27hz to ~4200hz
+#
+####
+
 ####### VARIABLES/FUNCTIONS OF DOOM
 
 #for future, pass the uri to the script
 audio_file = sys.argv[1]
 
 # number of bands
-bands = 30
+bands = 50
 
 #total slices or w/e
 total_fouriers = 2000
 
 #the window size (i.e., number of samples) for each fft
-fourier_window = np.float(256)
+fourier_window = np.float(1024)
 
+def bounds():
+    # define ranges of frequencies (hz) to blend
+    # i could do this automatically, but w/e
+    # basically, up to ~100hz, blend into one, from 100-2000
+    # skip every 10 hz, 2k+ blend into one
+    bounds = [ 
+                [0,100],
+            ]
+
+    start = bounds[-1][1]
+    step = 10
+    while start < 2000:
+        bounds.append([start,start+step])
+        start += step
+
+    bounds.append([start])
+    return bounds
 
 def fft(samples):
     #abs of fast fourier transform
@@ -32,49 +56,14 @@ def bandwidth(sample_size, sample_rate):
     #return bandwidth
     return np.multiply(np.true_divide(2, sample_size), np.true_divide(sample_rate, 2))
 
-def freq_to_i(frequency, sample_size, sample_rate):
-    #return index given frequency
-    freq = np.float(frequency)
-    ss = np.float(sample_size)
-    sr = np.float(sample_rate)
-    if freq < np.true_divide(bandwidth(ss, sr), 2):
-        return 0
-    
-    if freq > np.true_divide(sr, 2) - np.true_divide(bandwidth(ss, sr), 2):
-        return np.floor_divide(ss, 2)
+def freqs(sample_size, sample_rate):
+    #frequency for each index
+    f = np.true_divide(sample_rate, np.true_divide(sample_size, 2))
+    p=[k * f for k in range(int(sample_size))]
+    return p[:int(np.floor_divide(sample_size,2))+1]
 
-    f = np.true_divide(freq, sr)
-    i = np.round(np.multiply(ss, f))
-    return int(i)
+####### END VARIABLES/FUNCTIONS OF DOOM
 
-def log_averages(spectrum, sample_size, sample_rate, bands = 12):
-    #given spectrum, average the frequency amplitudes into
-    #<bands> number of frequency bands
-    sr = np.float(sample_rate)
-    averages = []
-    for i in range(bands):
-        #avg = np.float(0)
-        if i == 0:
-            low_freq = 0
-        else:
-            low_freq = np.true_divide(np.true_divide(sr,2), np.power(2, bands - i))
-
-        high_freq = np.true_divide(np.true_divide(sr,2), np.power(2, bands - 1 - i))
-        
-
-        low_b = freq_to_i(low_freq, sample_size, sample_rate)
-        hi_b = freq_to_i(high_freq, sample_size, sample_rate)
-
-        #print i, (low_b, hi_b), (low_freq,high_freq)
-
-        #for j in range(low_b, int(hi_b) +1):
-        #    avg += spectrum[j]
-        #avg = np.true_divide(avg, hi_b - low_b + 1)
-        averages.append(np.true_divide(sum([spectrum[j] for j in range(low_b, int(hi_b) + 1)]), hi_b - low_b + 1))
-
-    return np.array(averages)
-
-###### END VARIABLES/FUNCTIONS OF DOOM
 
 ########### GET THE AUDIO DATA
 
@@ -136,8 +125,31 @@ for window in range(total_fouriers):
 # average the shit into w/e number of bands, optimize since this is stupid slow
 # bad coding by me, really bad coding
 # i calculate the same thing over and over...stupid fucking stupid
-print "here"
-a = [log_averages(s, fourier_window, f.samplerate, bands) for s in spectrum_data]
+freq_bounds = bounds()
+freq_index = freqs(sample_size, f.sample_rate)
+
+#now I need to determine for the indices where they belong in the bounds
+# really stupid way to do this, but wtf, I suck at coding
+indices=[]
+lower = 0  #inclusive
+upper = 0  #inclusive
+for bound in freq_bounds:
+    for i,freq in enumerate(freq_index):
+        if bound[0] <= freq <= bound[1]:
+            upper = i
+    indices.append([lower,upper])
+
+            
+            
+
+#average based on indices values
+a = []
+for s in indices:
+    a.append((a, np.mean(spectrum_data[...,s[0]:s[1]+1], axis=1)))
+
+a = np.concatenate(a, axis=1)
+print a
+sys.exit(0)
 print "after"
 
 
