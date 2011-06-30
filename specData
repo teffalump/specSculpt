@@ -35,14 +35,16 @@ fourier_window = np.float(1024)
 
 def bounds(sample_rate):
     # define ranges of frequencies (hz) to blend
-    # i could do this automatically, but w/e
     # basically, blend logarithmically
+    # find splits for x octaves below nyquist
+    # split some in 2 or 3, to have fineness
+    # but also not too many bands
 
+    octaves = 12
     ny = sample_rate / 2
     
     bounds = []
-    #12 octaves
-    for i in range(12):
+    for i in range(octaves):
         b = [ny / np.power(2,12-i), ny / np.power(2,11-i)]
 
         #split/combine some octaves
@@ -61,13 +63,22 @@ def bounds(sample_rate):
         
         bounds.append(b)
 
-        #start at zero
+        #start at zero -- this is stupid code but w/e
         bounds[0][0] = 0
                 
     return bounds
 
+def freqs(sample_size, sample_rate):
+    #center frequency for each index
+
+    f = np.true_divide(sample_rate, sample_size)
+    p=[k * f for k in range(int(np.floor_divide(sample_size,2) + 1))]
+    return p
+
 def freq_to_bound(sample_size, sample_rate):
     #now I need to determine for the indices where they belong in the bounds
+    # basically, a mapping of fft index to blended band index
+
     # really stupid way to do this, but wtf, I suck at coding
     indices=[]
     for j,bound in enumerate(bounds(sample_rate)):
@@ -81,9 +92,6 @@ def freq_to_bound(sample_size, sample_rate):
                 break
         indices.append(inds)
 
-    # now we have an array mapping fft index to
-    # blended band index
-    
     return indices
 
 def fft(samples):
@@ -93,12 +101,6 @@ def fft(samples):
 def bandwidth(sample_size, sample_rate):
     #return bandwidth
     return np.multiply(np.true_divide(2, sample_size), np.true_divide(sample_rate, 2))
-
-def freqs(sample_size, sample_rate):
-    #frequency for each index
-    f = np.true_divide(sample_rate, sample_size)
-    p=[k * f for k in range(int(np.floor_divide(sample_size,2) + 1))]
-    return p
 
 ####### END VARIABLES/FUNCTIONS OF DOOM
 
@@ -125,20 +127,16 @@ fouriers_per_second = total_fouriers / time_length
 #frame step between each fft
 fourier_step = np.floor_divide(f.nframes, total_fouriers)
 
-#print fouriers_per_second
-#sys.exit(0)
-
-# print the info, if one wants
+##### print the info, if one wants
 #print "samplerate:",f.samplerate
 #print "total frames:",f.nframes
 #print "window_size:",fourier_window
 #print "# of ffts:", total_fouriers
 #print "step:",fourier_step
 #print "length:", time_length, "seconds"
-#
-# go through parts of file, chunk by chunk, with seeks
+#####
 
-#frame starts for each fourier
+# go through parts of file, chunk by chunk, with seeks
 
 i=0
 spectrum_data = []
@@ -165,6 +163,14 @@ for window in range(total_fouriers):
 a = []
 spectrum_data = np.array(spectrum_data)
 for s in freq_to_bound(fourier_window, f.samplerate):
+    #TODO 
+    #   i can (should?) append zeros if no frequency center
+    #   is in the band, however that doesn't mean
+    #   there isn't some spectral density...
+    #   i'll think about it if i ever want to change this
+    #   since i should use the bandwidth function to see how
+    #   wide (in hz) the spectral data is and then intelligently
+    #   add it to 1+ bands, if it spills over into other blended bands
     if s:
         a.append( 
                     #average every fft between bounds
@@ -174,11 +180,6 @@ for s in freq_to_bound(fourier_window, f.samplerate):
                         )
                     )
     else:
-        #TODO 
-        #   i can (should?) append zeros since no frequency center
-        #   is in the band, however that doesn't mean
-        #   there isn't some spectral density...
-        #   i'll think about it if i ever want to change this
        #a.append(
        #            #add zeroes since no data in that band 
        #            np.zeros(( total_fouriers,))
@@ -189,7 +190,7 @@ for s in freq_to_bound(fourier_window, f.samplerate):
 # join the averages
 a = np.dstack(a)[0]
 
-##### this part was hard to explain w/o some visuals 
+##### this previous part was hard to explain w/o some visuals 
 
 ##### we are going to write to a file
 #import json
@@ -198,7 +199,7 @@ fp = StringIO()
 
 # write part of desired format, 
 # probably can do this through json.dump
-# but fucked if i know how
+# but i'm just copying that stupid non-json shit
 fp.write("data[0] = {title: 'blar', timecode: [")
 
 # calculate very roughly millisecond difference b/w each sample
