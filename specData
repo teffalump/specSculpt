@@ -21,11 +21,8 @@ import sys
 #for future, pass the uri to the script
 audio_file = sys.argv[1]
 
-# number of bands
-bands = 50
-
 #total slices or w/e
-total_fouriers = 2000
+total_fouriers = 4000
 
 #the window size (i.e., number of samples) for each fft
 fourier_window = np.float(1024)
@@ -45,14 +42,6 @@ def bounds(sample_rate):
         #split/combine some octaves
         # octave 4 in 2
         # octave 5 - 7 in 3
-        if i == 0:
-            bounds.append([0,0])
-            continue
-        if i == 1:
-            continue
-        if i == 2:
-            bounds[0][1] = b[1]
-            continue
         if i == 4:
             mid = (b[0] + b[1])/2
             bounds.extend([[b[0], mid], [mid, b[1]]])
@@ -65,9 +54,10 @@ def bounds(sample_rate):
             continue
         
         bounds.append(b)
-                
-    #combine first 3
 
+        #start at zero
+        bounds[0][0] = 0
+                
     return bounds
 
 def freq_to_bound(sample_size, sample_rate):
@@ -169,14 +159,29 @@ for window in range(total_fouriers):
 a = []
 spectrum_data = np.array(spectrum_data)
 for s in freq_to_bound(fourier_window, f.samplerate):
-    a.append( 
-                np.mean(
-                    spectrum_data[...,s[0]:s[-1]+1], 
-                    axis=1
+    print s
+    if s:
+        a.append( 
+                    #average every fft between bounds
+                    np.mean(
+                        spectrum_data[...,s[0]:s[-1]+1], 
+                        axis=1
+                        )
                     )
-                )
+    else:
+        #TODO 
+        #   i can (should?) append zeros since no frequency center
+        #   is in the band, however that doesn't mean
+        #   there isn't some spectral density...
+        #   i'll think about it if i ever want to change this
+       #a.append(
+       #            #add zeroes since no data in that band 
+       #            np.zeros(( total_fouriers,))
+       #        )
+        continue
 
-# join the values
+
+# join the averages
 a = np.dstack(a)[0]
 
 ##### this part was hard to explain w/o some visuals 
