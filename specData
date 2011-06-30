@@ -45,7 +45,7 @@ def bounds(sample_rate):
     
     bounds = []
     for i in range(octaves):
-        b = [ny / np.power(2,12-i), ny / np.power(2,11-i)]
+        b = [ny / np.power(2,octaves-i), ny / np.power(2,octaves - 1 - i)]
 
         #split/combine some octaves
         # octave 4 in 2
@@ -210,16 +210,18 @@ time_step = np.reciprocal(np.float(fouriers_per_second)) * 1000
 window_time = (time_length / fourier_window) * 1000
 #print window_time, "ms for each sample set"
 
-#find max value in fft, needed for scaling
+#find max value and scale ratio in fft, needed for scaling
 high=np.amax(a)
+scale = 255 / high # (high - low) but low = 0, more or less
+
+center = window_time / 2
 
 for k,v in enumerate(a):
     # calculte time (in ms) for each sample
-    time = int(np.floor((k * time_step) + (.5 * window_time)))
+    time = int(np.floor((k * time_step) + center))
     #print time, "milliseconds"
 
     #scale values to between 0-255
-    scale = 255 / high # (high - low) but low = 0, more or less
     tmp = np.multiply(v, scale)
     tmp = np.round(tmp)
     tmp = np.asarray(tmp,dtype=int)
