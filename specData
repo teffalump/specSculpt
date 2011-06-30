@@ -15,13 +15,13 @@ import sys
 audio_file = sys.argv[1]
 
 # number of bands
-bands = 50
+bands = 30
 
 #total slices or w/e
-total_fouriers = 1000
+total_fouriers = 2000
 
 #the window size (i.e., number of samples) for each fft
-fourier_window = np.float(512)
+fourier_window = np.float(256)
 
 
 def fft(samples):
@@ -89,9 +89,11 @@ f = Sndfile(audio_file, "r")
     #   read_frames(x) = read x number of frames, moves index
     #   seek(x) = move to frame number x
 
+#length of file (in secs) very rough
+time_length = f.nframes / f.samplerate
+
 # fouriers per second of sample
-fouriers_per_second = total_fouriers / (f.nframes / f.samplerate)
-#fouriers_per_second = np.float(10)
+fouriers_per_second = total_fouriers / time_length
 
 #frame step between each fft
 fourier_step = np.floor_divide(f.nframes, total_fouriers)
@@ -105,7 +107,7 @@ print "total frames:",f.nframes
 print "window_size:",fourier_window
 print "# of ffts:", total_fouriers
 print "step:",fourier_step
-print "length:", f.nframes / f.samplerate, "seconds"
+print "length:", time_length, "seconds"
 
 # go through parts of file, chunk by chunk, with seeks
 
@@ -114,7 +116,7 @@ print "length:", f.nframes / f.samplerate, "seconds"
 i=0
 spectrum_data = []
 for window in range(total_fouriers):
-    print "fourier #:",window, "i:",i
+    #print "fourier #:",window, "i:",i
     f.seek(i)
     if f.channels == 1:
         chunk = f.read_frames(fourier_window)
@@ -131,7 +133,9 @@ for window in range(total_fouriers):
 
 # Have spectrum data in array, yay!!!!
 
-# average the shit into w/e number of bands
+# average the shit into w/e number of bands, optimize since this is stupid slow
+# bad coding by me, really bad coding
+# i calculate the same thing over and over...stupid fucking stupid
 print "here"
 a = [log_averages(s, fourier_window, f.samplerate, bands) for s in spectrum_data]
 print "after"
@@ -149,27 +153,23 @@ fp.write("data[0] = {title: 'blar', timecode: [")
 
 # calculate very roughly millisecond difference b/w each sample
 time_step = np.reciprocal(np.float(fouriers_per_second)) * 1000
-#print fouriers_per_second
 #print time_step, "ms b/w each sampling"
 
-# time window for each sample set
-window_time = ((f.nframes / f.samplerate) / fourier_window) * 1000
+# time window for each sample set (in ms)
+window_time = (time_length / fourier_window) * 1000
 #print window_time, "ms for each sample set"
 
-#find max value in fft
-high=np.array(a).max()
-low=np.array(a).min()
-#sys.exit(0)
+#find max value in fft, needed for scaling
+high=np.amax(a)
 
 for k,v in enumerate(a):
     # calculte time (in ms) for each sample
-    time = int(round((k * time_step) + (.5 * window_time)))
-    print time, "milliseconds"
+    time = int(np.floor((k * time_step) + (.5 * window_time)))
+    #print time, "milliseconds"
 
     #scale values to between 0-255
-    scale = float(255) / (high - low)
-    tmp = np.subtract(v,low)
-    tmp = np.multiply(tmp, scale)
+    scale = 255 / high # (high - low) but low = 0, more or less
+    tmp = np.multiply(v, scale)
     tmp = np.round(tmp)
     tmp = np.asarray(tmp,dtype=int)
 
