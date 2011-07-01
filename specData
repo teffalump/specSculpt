@@ -94,10 +94,6 @@ def freq_to_bound(sample_size, sample_rate):
 
     return indices
 
-def fft(samples):
-    #abs of fast fourier transform
-    return np.abs(np.fft.rfft(samples)) 
-
 def bandwidth(sample_size, sample_rate):
     #return bandwidth
     return np.multiply(np.true_divide(2, sample_size), np.true_divide(sample_rate, 2))
@@ -139,7 +135,7 @@ fourier_step = np.floor_divide(f.nframes, total_fouriers)
 # go through parts of file, chunk by chunk, with seeks
 
 i=0
-spectrum_data = []
+spec_data = []
 for window in range(total_fouriers):
     #print "fourier #:",window, "i:",i
     f.seek(i)
@@ -153,15 +149,17 @@ for window in range(total_fouriers):
             avg = np.true_divide(np.sum(frame), fourier_window)
             chunk.append(avg)
     
-    spectrum_data.append(fft(chunk))
+    spec_data.append(chunk)
     i+=fourier_step
 
-##### Have fft'd audio data in array, yay!!!!
+##### Have spectrum audio data in array, yay!!!!
+
+# fft it and take its abs
+fft_data = np.abs(np.fft.rfft(spec_data))
 
 ##### Now we need to blend into bands
 # average for each fft
 a = []
-spectrum_data = np.array(spectrum_data)
 for s in freq_to_bound(fourier_window, f.samplerate):
     #TODO 
     #   i can (should?) append zeros if no frequency center
@@ -175,7 +173,7 @@ for s in freq_to_bound(fourier_window, f.samplerate):
         a.append( 
                     #average every fft between bounds
                     np.mean(
-                        spectrum_data[...,s[0]:s[-1]+1], 
+                        fft_data[...,s[0]:s[-1]+1], 
                         axis=1
                         )
                     )
