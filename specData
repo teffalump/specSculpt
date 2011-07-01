@@ -28,7 +28,7 @@ import sys
 audio_file = sys.argv[1]
 
 #total slices or w/e
-total_fouriers = 1000
+total_fouriers = 2000
 
 #the window size (i.e., number of samples) for each fft
 fourier_window = np.float(1024)
@@ -80,6 +80,8 @@ def freq_to_bound(sample_size, sample_rate):
     # basically, a mapping of fft index to blended band index
 
     # really stupid way to do this, but wtf, I suck at coding
+    # TODO
+    #   optimize, unnecessary tests
     indices=[]
     for j,bound in enumerate(bounds(sample_rate)):
         inds = []
@@ -133,32 +135,33 @@ fourier_step = np.floor_divide(f.nframes, total_fouriers)
 #####
 
 # go through parts of file, chunk by chunk, with seeks
-
+# TODO
+#   optimize, this is the slow part
+print "starting audio chunking"
 i=0
 spec_data = []
 for window in range(total_fouriers):
-    #print "fourier #:",window, "i:",i
     f.seek(i)
     if f.channels == 1:
         chunk = f.read_frames(fourier_window)
 
     else:
         #average the channels
-        chunk = []
-        for frame in f.read_frames(fourier_window):
-            avg = np.true_divide(np.sum(frame), fourier_window)
-            chunk.append(avg)
-    
+        chunk = np.mean(f.read_frames(fourier_window), axis=1)
+
     spec_data.append(chunk)
     i+=fourier_step
 
 ##### Have spectrum audio data in array, yay!!!!
 
+print "finished audio retrieval, fft now"
 # fft it and take its abs
 fft_data = np.abs(np.fft.rfft(spec_data))
+print "fft done"
 
 ##### Now we need to blend into bands
 # average for each fft
+print "blending starting"
 a = []
 for s in freq_to_bound(fourier_window, f.samplerate):
     #TODO 
@@ -187,6 +190,7 @@ for s in freq_to_bound(fourier_window, f.samplerate):
 
 # join the averages
 a = np.dstack(a)[0]
+print "done blending"
 
 ##### this previous part was hard to explain w/o some visuals 
 
