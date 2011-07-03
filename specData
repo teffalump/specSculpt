@@ -5,6 +5,7 @@ General plan:
     fft the samples --> get the spectrum
 '''
 import numpy as np
+from functools import reduce
 from scikits.audiolab import Sndfile
 import sys
 
@@ -14,9 +15,7 @@ import sys
 # piano is from ~27hz to ~4200hz
 #
 ####
-#### TODO
-#       CONVERT ALL THIS TO A CLASS
-#######
+
 ####### VARIABLES/FUNCTIONS OF DOOM
 ### TODO
 ###     deduce the proper variables
@@ -29,14 +28,49 @@ import sys
 audio_file = sys.argv[1]
 
 #total slices or w/e
-total_fouriers = 11000
+total_fouriers = 2000
 
 #the window size (i.e., number of samples) for each fft
 fourier_window = np.float(1024)
 
+def bounds(sample_rate):
+    # define ranges of frequencies (hz) to blend
+    # basically, blend logarithmically
+    # find splits for x octaves below nyquist
+    # split some in 2 or 3, to have fineness
+    # but also not too many bands
+
+    octaves = 12
+    ny = sample_rate / 2
+    
+    bounds = []
+    for i in range(octaves):
+        b = [ny / np.power(2,octaves-i), ny / np.power(2,octaves - 1 - i)]
+
+        #split/combine some octaves
+        # octave 4 in 2
+        # octave 5 - 7 in 3
+        if i == 4:
+            mid = (b[0] + b[1])/2
+            bounds.extend([[b[0], mid], [mid, b[1]]])
+            continue
+        if i in (5,6,7):
+            d = (b[1] - b[0]) / 3
+            l = b[0] + d
+            u = b[0] + 2 * d
+            bounds.extend([[b[0], l], [l, u], [u, b[1]]])
+            continue
+        
+        bounds.append(b)
+
+        #start at zero -- this is stupid code but w/e
+        bounds[0][0] = 0
+                
+    return bounds
 
 def freqs(sample_size, sample_rate):
     #center frequency for each index
+
     f = np.true_divide(sample_rate, sample_size)
     p=[k * f for k in range(int(np.floor_divide(sample_size,2) + 1))]
     return p
@@ -98,13 +132,11 @@ fourier_step = np.floor_divide(f.nframes, total_fouriers)
 #print "# of ffts:", total_fouriers
 #print "step:",fourier_step
 #print "length:", time_length, "seconds"
-######
+#####
 
 # go through parts of file, chunk by chunk, with seeks
 # TODO
-#   optimize when fourier_step is below fourier_window
-#   since it crazy slows down -- don't know why maybe backwards
-#   seeks are slow? e.g., 1000 ---> 998 = slow, but 998 --> 1000 = fast?
+#   optimize, this is the slow part
 print "starting audio chunking"
 i=0
 spec_data = []
