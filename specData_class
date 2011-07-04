@@ -1,0 +1,50 @@
+#!/usr/bin/python
+
+class spectrumData:
+    ''' 
+    class shit 
+
+    '''
+    def __init__(self, audio_file, sample_size = 1024):
+        from scikits.audiolab import Sndfile
+        self.uri = audio_file
+        self.sample_size = sample_size
+        self.f = Sndfile(self.uri, "r")
+        self.file_info = {
+                            "channels": self.f.channels,
+                            "samplerate": self.f.samplerate,
+                            "total_frames": self.f.nframes,
+                            "time_length": self.f.nframes / self.f.samplerate,
+                            "nyquist": self.f.samplerate / 2
+                         }
+        self.bands_info = {
+                            "octaves": 12,
+                            "divisions_per_octave": 3
+                         }
+        print self.bound()
+
+    def bound(self):
+        ''' get bounds '''
+        import numpy as np
+
+        #octave bounds -- no splits
+        self.naive_bounds = [ [self.file_info["nyquist"] / np.power(2, self.bands_info["octaves"]-i), self.file_info["nyquist"]  / np.power(2, self.bands_info["octaves"]- 1 - i)] 
+                                for i in range(self.bands_info["octaves"])]
+
+        #start at zero -- this is stupid code but w/e
+        self.naive_bounds[0][0] = 0
+
+        #split octaves into <division_per_octave> parts
+        self.bounds = []
+        for i in zip(np.amin(self.naive_bounds, axis=1),
+                    np.true_divide(
+                                    np.ptp(self.naive_bounds, axis=1), 
+                                    self.bands_info["divisions_per_octave"])):
+
+            for j in range(self.bands_info["divisions_per_octave"]):
+                self.bounds.append([i[0] + (j * i[1]), i[0] + ( (j + 1) * i[1])])
+
+        self.bounds = np.rint(self.bounds) 
+        return np.asarray(self.bounds, dtype=int)
+
+spectrumData("/home/cz/test.wav")
