@@ -7,26 +7,29 @@ class spectrumData:
     '''
     def __init__(self, audio_file, sample_size = 1024):
         from scikits.audiolab import Sndfile
+
         self.uri = audio_file
         self.sample_size = sample_size
         self.f = Sndfile(self.uri, "r")
         self.file_info = {
                             "channels": self.f.channels,
+                            "bandwidth":  self.f.samplerate / float(self.sample_size),
                             "samplerate": self.f.samplerate,
                             "total_frames": self.f.nframes,
-                            "time_length": self.f.nframes / self.f.samplerate,
+                            "time_length": self.f.nframes / float(self.f.samplerate),
                             "nyquist": self.f.samplerate / 2
                          }
         self.bands_info = {
                             "octaves": 12,
                             "divisions_per_octave": 3
                          }
-        print self.bound()
+        #print self.bound()
+        print self.freqs()
+        print self.file_info
 
     def bound(self):
         ''' get bounds '''
         import numpy as np
-
         #octave bounds -- no splits
         self.naive_bounds = [ [self.file_info["nyquist"] / np.power(2, self.bands_info["octaves"]-i), self.file_info["nyquist"]  / np.power(2, self.bands_info["octaves"]- 1 - i)] 
                                 for i in range(self.bands_info["octaves"])]
@@ -46,5 +49,10 @@ class spectrumData:
 
         self.bounds = np.rint(self.bounds) 
         return np.asarray(self.bounds, dtype=int)
+
+    def freqs(self):
+        '''center frequency for each index'''
+        import numpy as np
+        return [k * self.file_info["bandwidth"] for k in range(self.sample_size / 2 + 1)]
 
 spectrumData("/home/cz/test.wav")
