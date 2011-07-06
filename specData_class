@@ -5,7 +5,7 @@ class spectrumData:
     class shit 
 
     '''
-    def __init__(self, audio_file, sample_size = 1024):
+    def __init__(self, audio_file, sample_size = 1024, fouriers_per_second = 24):
         from scikits.audiolab import Sndfile
 
         self.uri = audio_file
@@ -13,19 +13,20 @@ class spectrumData:
         self.f = Sndfile(self.uri, "r")
         self.file_info = {
                             "channels": self.f.channels,
-                            "bandwidth":  self.f.samplerate / float(self.sample_size),
                             "samplerate": self.f.samplerate,
                             "total_frames": self.f.nframes,
                             "time_length": self.f.nframes / float(self.f.samplerate),
                             "nyquist": self.f.samplerate / 2
                          }
         self.bands_info = {
+                            "bandwidth":  self.f.samplerate / float(self.sample_size),
                             "octaves": 12,
                             "divisions_per_octave": 3
                          }
-        #print self.bound()
-        print self.freqs()
-        print self.file_info
+        self.fft_info = {
+                            "sample_size": sample_size,
+                            "fourier_second": fouriers_per_second
+                        }
 
     def bound(self):
         ''' get bounds '''
@@ -34,7 +35,7 @@ class spectrumData:
         self.naive_bounds = [ [self.file_info["nyquist"] / np.power(2, self.bands_info["octaves"]-i), self.file_info["nyquist"]  / np.power(2, self.bands_info["octaves"]- 1 - i)] 
                                 for i in range(self.bands_info["octaves"])]
 
-        #start at zero -- this is stupid code but w/e
+        #start at zero;this (everything after) is stupid code but w/e
         self.naive_bounds[0][0] = 0
 
         #split octaves into <division_per_octave> parts
@@ -47,12 +48,39 @@ class spectrumData:
             for j in range(self.bands_info["divisions_per_octave"]):
                 self.bounds.append([i[0] + (j * i[1]), i[0] + ( (j + 1) * i[1])])
 
-        self.bounds = np.rint(self.bounds) 
-        return np.asarray(self.bounds, dtype=int)
+        return np.asarray(np.rint(self.bounds), dtype=int)
 
     def freqs(self):
         '''center frequency for each index'''
-        import numpy as np
-        return [k * self.file_info["bandwidth"] for k in range(self.sample_size / 2 + 1)]
+        return [k * self.bands_info["bandwidth"] for k in range(self.sample_size / 2 + 1)]
 
-spectrumData("/home/cz/test.wav")
+    def seeks(self):
+        ''' determine seek indices '''
+        from math import floor
+        self.total_fouriers = int(floor(self.fft_info["fourier_second"] * self.file_info["time_length"]))
+        self.step = int(self.f.nframes // self.total_fouriers)
+        return [k * self.step for k in range(self.total_fouriers)]
+
+    def scale(self):
+    ''' scale values '''
+        pass
+    def blend(self):
+    ''' blend data into bands '''
+        pass
+
+    def fft_data(self):
+        '''return abs fft of audio data'''
+        import numpy as np
+        self.spec_data = []
+        for i in self.seeks():
+            self.f.seek(i)
+            if self.file_info["channels"] == 1:
+                self.spec_data.append(self.f.read_frames(self.fft_info["sample_size"]))
+            else:
+                # averaging each chunk now is faster than averaging all chunks at end
+                self.spec_data.append(np.mean(self.f.read_frames(self.fft_info["sample_size"]), axis=1))
+
+        return np.abs(np.fft.rfft(self.spec_data))
+        
+import sys
+spectrumData(sys.argv[1])
