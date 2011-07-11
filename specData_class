@@ -2,7 +2,7 @@
 
 class spectrumData:
     ''' 
-    class shit 
+    class that can retrieve fft of audio data, blend it, scale it, etc 
 
     '''
     def __init__(self, audio_file, sample_size = 1024, fouriers_per_second = 24):
@@ -28,7 +28,7 @@ class spectrumData:
                         }
 
 
-        print self.scale(self.blend())
+        print self.scale(self.blend(self.fft_data()))[344:346]
 
     def bounds(self):
         ''' get bounds 
@@ -108,14 +108,13 @@ class spectrumData:
         #print "done freq_to_band"
         return indices
 
-    def blend(self):
+    def blend(self, data):
         '''
-        using freq_to_band info, blend fft_data into bands
+        using freq_to_band info, blend data into bands
         '''
         import numpy as np
         #print "starting blending"
         a = []
-        data = self.fft_data()
         for s in self.freq_to_band():
             #TODO 
             #   i can (should?) append zeros if no frequency center
