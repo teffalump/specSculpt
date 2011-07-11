@@ -9,7 +9,6 @@ class spectrumData:
         from scikits.audiolab import Sndfile
 
         self.uri = audio_file
-        self.sample_size = sample_size
         self.f = Sndfile(self.uri, "r")
         self.file_info = {
                             "channels": self.f.channels,
@@ -19,7 +18,7 @@ class spectrumData:
                             "nyquist": self.f.samplerate / 2
                          }
         self.bands_info = {
-                            "bandwidth":  self.f.samplerate / float(self.sample_size),
+                            "bandwidth":  self.f.samplerate / float(sample_size),
                             "octaves": 12,
                             "divisions_per_octave": 3
                          }
@@ -29,7 +28,10 @@ class spectrumData:
                         }
 
     def bound(self):
-        ''' get bounds '''
+        ''' get bounds 
+            TODO
+                simplify this shit
+        '''
         import numpy as np
         #octave bounds -- no splits
         self.naive_bounds = [ [self.file_info["nyquist"] / np.power(2, self.bands_info["octaves"]-i), self.file_info["nyquist"]  / np.power(2, self.bands_info["octaves"]- 1 - i)] 
@@ -57,15 +59,29 @@ class spectrumData:
     def seeks(self):
         ''' determine seek indices '''
         from math import floor
-        self.total_fouriers = int(floor(self.fft_info["fourier_second"] * self.file_info["time_length"]))
-        self.step = int(self.f.nframes // self.total_fouriers)
-        return [k * self.step for k in range(self.total_fouriers)]
+        total_fouriers = int(floor(self.fft_info["fourier_second"] * self.file_info["time_length"]))
+        step = int(self.file_info["total_frames"] // total_fouriers)
+        return [k * step for k in range(total_fouriers)]
 
-    def scale(self):
-    ''' scale values '''
-        pass
+    def scale(self, data):
+        ''' 
+        scale values to between 0-255
+
+        '''
+        import numpy as np
+
+        scaled = []
+        scale = 255 / np.amax(data) #(high - low) but low = 0, more or less
+        
+        for v in data:
+            scaled.append(np.asarray(np.round(np.multiply(v,scale)),dtype=int))
+
+        return scaled
+
     def blend(self):
-    ''' blend data into bands '''
+        ''' 
+        blend data into bands 
+        '''
         pass
 
     def fft_data(self):
