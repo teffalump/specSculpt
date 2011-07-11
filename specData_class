@@ -7,6 +7,7 @@ class spectrumData:
     '''
     def __init__(self, audio_file, sample_size = 1024, fouriers_per_second = 24):
         from scikits.audiolab import Sndfile
+        from math import floor
 
         self.uri = audio_file
         self.f = Sndfile(self.uri, "r")
@@ -23,13 +24,13 @@ class spectrumData:
                             "divisions_per_octave": 3
                          }
         self.fft_info = {
+                            "total_fouriers": int(floor(fouriers_per_second * (self.f.nframes / float(self.f.samplerate)))),
                             "sample_size": sample_size,
                             "fourier_second": fouriers_per_second
                         }
 
 
-        print self.scale(self.blend(self.fft_data()))[344:346]
-
+        print self.scale(self.blend(self.fft_data()))
     def bounds(self):
         ''' get bounds 
             TODO
@@ -59,15 +60,23 @@ class spectrumData:
         return np.asarray(np.rint(bounds), dtype=int)
 
     def freqs(self):
-        '''center frequency for each index'''
-        return [k * self.bands_info["bandwidth"] for k in range(self.fft_info["sample_size"] / 2 + 1)]
+        '''frequency band for each index'''
+        a = []
+        diff = self.bands_info["bandwidth"] / 2
+        for k in range(self.fft_info["sample_size"] / 2 + 1):
+            center = k * self.bands_info["bandwidth"]
+            if center == 0:
+                a.append( [0, diff] )
+            elif center == self.file_info["nyquist"]:
+                a.append( [ self.file_info["nyquist"] - diff, self.file_info["nyquist"] ] )
+            else:
+                a.append( [center - diff, center + diff] )
+        return a
 
     def seeks(self):
         ''' determine seek indices '''
-        from math import floor
-        total_fouriers = int(floor(self.fft_info["fourier_second"] * self.file_info["time_length"]))
-        step = int(self.file_info["total_frames"] // total_fouriers)
-        return [k * step for k in range(total_fouriers)]
+        step = int(self.file_info["total_frames"] // self.fft_info["total_fouriers"])
+        return [k * step for k in range(self.fft_info["total_fouriers"])]
 
     def scale(self, data, lim = 255):
         ''' 
@@ -89,23 +98,21 @@ class spectrumData:
          really stupid way to do this, but wtf, I suck at coding
          TODO
            -optimize --> eliminate unnecessary tests, etc
-
-           -use bandwidth and fill correctly, rather than just center freq of fft
         '''
-        #print "starting freq_to_band"
+        print "starting freq_to_band"
         indices=[]
         for j,bound in enumerate(self.bounds()):
             inds = []
             for i,freq in enumerate(self.freqs()):
-                if bound[0] <= freq <= bound[1]:
-                    ##print freq, "w/i", bound[0], "and", bound[1]
-                    ##print "--> therefore,", i, "in", j
+                if bound[0] <= freq[0] <= bound[1] or bound[0] <= freq[1] <= bound[1]:
+                    #print freq, "w/i", bound[0], "and", bound[1]
+                    #print "--> therefore,", i, "in", j
                     inds.append(i)
-                if freq > bound[1]:
+                if freq[0] > bound[1]:
                     break
             indices.append(inds)
 
-        #print "done freq_to_band"
+        print "done freq_to_band"
         return indices
 
     def blend(self, data):
@@ -116,14 +123,6 @@ class spectrumData:
         #print "starting blending"
         a = []
         for s in self.freq_to_band():
-            #TODO 
-            #   i can (should?) append zeros if no frequency center
-            #   is in the band, however that doesn't mean
-            #   there isn't some spectral density...
-            #   i'll think about it if i ever want to change this
-            #   since i should use the bandwidth function to see how
-            #   wide (in hz) the spectral data is and then intelligently
-            #   add it to 1+ bands, if it spills over into other blended bands
             if s:
                 a.append( 
                             #average every fft between bounds
@@ -134,8 +133,8 @@ class spectrumData:
                             )
             else:
                #a.append(
-               #            #add zeroes since no data in that band 
-               #            np.zeros(( total_fouriers,))
+               #           #add zeroes since no data in that band 
+               #            np.zeros(( self.fft_info["total_fouriers"],))
                #        )
                 continue
 
