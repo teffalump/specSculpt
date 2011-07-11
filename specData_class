@@ -26,13 +26,16 @@ class spectrumData:
                             "sample_size": sample_size,
                             "fourier_second": fouriers_per_second
                         }
-        print self.bounds()
+
+
+        print self.scale(self.blend())
 
     def bounds(self):
         ''' get bounds 
             TODO
                 simplify this shit
         '''
+        #print "determing bounds"
         import numpy as np
         #octave bounds -- no splits
         naive_bounds = [ [self.file_info["nyquist"] / np.power(2, self.bands_info["octaves"]-i), self.file_info["nyquist"]  / np.power(2, self.bands_info["octaves"]- 1 - i)] 
@@ -51,6 +54,8 @@ class spectrumData:
             for j in range(self.bands_info["divisions_per_octave"]):
                 bounds.append([i[0] + (j * i[1]), i[0] + ( (j + 1) * i[1])])
 
+
+        #print "bounds done"
         return np.asarray(np.rint(bounds), dtype=int)
 
     def freqs(self):
@@ -87,23 +92,64 @@ class spectrumData:
 
            -use bandwidth and fill correctly, rather than just center freq of fft
         '''
+        #print "starting freq_to_band"
         indices=[]
         for j,bound in enumerate(self.bounds()):
             inds = []
             for i,freq in enumerate(self.freqs()):
                 if bound[0] <= freq <= bound[1]:
-                    #print freq, "w/i", bound[0], "and", bound[1]
-                    #print "--> therefore,", i, "in", j
+                    ##print freq, "w/i", bound[0], "and", bound[1]
+                    ##print "--> therefore,", i, "in", j
                     inds.append(i)
                 if freq > bound[1]:
                     break
             indices.append(inds)
 
+        #print "done freq_to_band"
         return indices
+
+    def blend(self):
+        '''
+        using freq_to_band info, blend fft_data into bands
+        '''
+        import numpy as np
+        #print "starting blending"
+        a = []
+        data = self.fft_data()
+        for s in self.freq_to_band():
+            #TODO 
+            #   i can (should?) append zeros if no frequency center
+            #   is in the band, however that doesn't mean
+            #   there isn't some spectral density...
+            #   i'll think about it if i ever want to change this
+            #   since i should use the bandwidth function to see how
+            #   wide (in hz) the spectral data is and then intelligently
+            #   add it to 1+ bands, if it spills over into other blended bands
+            if s:
+                a.append( 
+                            #average every fft between bounds
+                            np.mean(
+                                data[...,s[0]:s[-1]+1], 
+                                axis=1
+                                )
+                            )
+            else:
+               #a.append(
+               #            #add zeroes since no data in that band 
+               #            np.zeros(( total_fouriers,))
+               #        )
+                continue
+
+
+        # join the averages
+        #print "done blending"
+        return np.dstack(a)[0]
+
 
     def fft_data(self):
         '''return abs fft of audio data'''
         import numpy as np
+        #print "chunking"
         self.spec_data = []
         if self.file_info["channels"] == 1:
             for i in self.seeks():
@@ -115,6 +161,8 @@ class spectrumData:
                 # averaging each chunk now is faster than averaging all chunks at end
                 self.spec_data.append(np.mean(self.f.read_frames(self.fft_info["sample_size"]), axis=1))
 
+        #print "done chunking"
+        #print "fft now"
         return np.abs(np.fft.rfft(self.spec_data))
         
 import sys
