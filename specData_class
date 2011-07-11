@@ -26,35 +26,36 @@ class spectrumData:
                             "sample_size": sample_size,
                             "fourier_second": fouriers_per_second
                         }
+        print self.bounds()
 
-    def bound(self):
+    def bounds(self):
         ''' get bounds 
             TODO
                 simplify this shit
         '''
         import numpy as np
         #octave bounds -- no splits
-        self.naive_bounds = [ [self.file_info["nyquist"] / np.power(2, self.bands_info["octaves"]-i), self.file_info["nyquist"]  / np.power(2, self.bands_info["octaves"]- 1 - i)] 
+        naive_bounds = [ [self.file_info["nyquist"] / np.power(2, self.bands_info["octaves"]-i), self.file_info["nyquist"]  / np.power(2, self.bands_info["octaves"]- 1 - i)] 
                                 for i in range(self.bands_info["octaves"])]
 
         #start at zero;this (everything after) is stupid code but w/e
-        self.naive_bounds[0][0] = 0
+        naive_bounds[0][0] = 0
 
         #split octaves into <division_per_octave> parts
-        self.bounds = []
-        for i in zip(np.amin(self.naive_bounds, axis=1),
+        bounds = []
+        for i in zip(np.amin(naive_bounds, axis=1),
                     np.true_divide(
-                                    np.ptp(self.naive_bounds, axis=1), 
+                                    np.ptp(naive_bounds, axis=1), 
                                     self.bands_info["divisions_per_octave"])):
 
             for j in range(self.bands_info["divisions_per_octave"]):
-                self.bounds.append([i[0] + (j * i[1]), i[0] + ( (j + 1) * i[1])])
+                bounds.append([i[0] + (j * i[1]), i[0] + ( (j + 1) * i[1])])
 
-        return np.asarray(np.rint(self.bounds), dtype=int)
+        return np.asarray(np.rint(bounds), dtype=int)
 
     def freqs(self):
         '''center frequency for each index'''
-        return [k * self.bands_info["bandwidth"] for k in range(self.sample_size / 2 + 1)]
+        return [k * self.bands_info["bandwidth"] for k in range(self.fft_info["sample_size"] / 2 + 1)]
 
     def seeks(self):
         ''' determine seek indices '''
@@ -63,36 +64,54 @@ class spectrumData:
         step = int(self.file_info["total_frames"] // total_fouriers)
         return [k * step for k in range(total_fouriers)]
 
-    def scale(self, data):
+    def scale(self, data, lim = 255):
         ''' 
-        scale values to between 0-255
+        scale values to between 0-lim
 
         '''
         import numpy as np
 
-        scaled = []
-        scale = 255 / np.amax(data) #(high - low) but low = 0, more or less
+        scale = lim / np.amax(data) #denominator is (high - low) but low = 0 ~
         
-        for v in data:
-            scaled.append(np.asarray(np.round(np.multiply(v,scale)),dtype=int))
+        return np.asarray(np.round(np.multiply(data,scale)),dtype=int)
 
-        return scaled
-
-    def blend(self):
+    def freq_to_band(self):
         ''' 
-        blend data into bands 
+        I need to determine for the indices where they belong in the bounds
+        basically, a mapping of fft index to blended band index
+
+
+         really stupid way to do this, but wtf, I suck at coding
+         TODO
+           -optimize --> eliminate unnecessary tests, etc
+
+           -use bandwidth and fill correctly, rather than just center freq of fft
         '''
-        pass
+        indices=[]
+        for j,bound in enumerate(self.bounds()):
+            inds = []
+            for i,freq in enumerate(self.freqs()):
+                if bound[0] <= freq <= bound[1]:
+                    #print freq, "w/i", bound[0], "and", bound[1]
+                    #print "--> therefore,", i, "in", j
+                    inds.append(i)
+                if freq > bound[1]:
+                    break
+            indices.append(inds)
+
+        return indices
 
     def fft_data(self):
         '''return abs fft of audio data'''
         import numpy as np
         self.spec_data = []
-        for i in self.seeks():
-            self.f.seek(i)
-            if self.file_info["channels"] == 1:
+        if self.file_info["channels"] == 1:
+            for i in self.seeks():
+                self.f.seek(i)
                 self.spec_data.append(self.f.read_frames(self.fft_info["sample_size"]))
-            else:
+        else:
+            for i in self.seeks():
+                self.f.seek(i)
                 # averaging each chunk now is faster than averaging all chunks at end
                 self.spec_data.append(np.mean(self.f.read_frames(self.fft_info["sample_size"]), axis=1))
 
