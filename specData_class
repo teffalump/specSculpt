@@ -2,7 +2,10 @@
 
 class spectrumData:
     ''' 
-    class that can retrieve fft of audio data, blend it, scale it, etc 
+    class that can retrieve fft of audio file, blend it, scale it, etc 
+        REQUIRES:
+            scikits.audiolab
+            numpy
 
     '''
     def __init__(self, audio_file, sample_size = 1024, fouriers_per_second = 24):
@@ -29,8 +32,7 @@ class spectrumData:
                             "fourier_second": fouriers_per_second
                         }
 
-
-        print self.scale(self.blend(self.fft_data()))
+        print self.freq_to_band()
     def bounds(self):
         ''' get bounds 
             TODO
@@ -99,12 +101,16 @@ class spectrumData:
          TODO
            -optimize --> eliminate unnecessary tests, etc
         '''
-        print "starting freq_to_band"
+        #print "starting freq_to_band"
         indices=[]
         for j,bound in enumerate(self.bounds()):
             inds = []
             for i,freq in enumerate(self.freqs()):
-                if bound[0] <= freq[0] <= bound[1] or bound[0] <= freq[1] <= bound[1]:
+                #if freq range subsumes/subset of bound
+                # add it to that index
+                if bound[0] <= freq[0] <= bound[1] \
+                    or bound[0] <= freq[1] <= bound[1] \
+                    or (freq[0] <= bound[0] and freq[1] >= bound[1]):
                     #print freq, "w/i", bound[0], "and", bound[1]
                     #print "--> therefore,", i, "in", j
                     inds.append(i)
@@ -112,7 +118,7 @@ class spectrumData:
                     break
             indices.append(inds)
 
-        print "done freq_to_band"
+        #print "done freq_to_band"
         return indices
 
     def blend(self, data):
@@ -148,20 +154,20 @@ class spectrumData:
         '''return abs fft of audio data'''
         import numpy as np
         #print "chunking"
-        self.spec_data = []
+        spec_data = []
         if self.file_info["channels"] == 1:
             for i in self.seeks():
                 self.f.seek(i)
-                self.spec_data.append(self.f.read_frames(self.fft_info["sample_size"]))
+                spec_data.append(self.f.read_frames(self.fft_info["sample_size"]))
         else:
             for i in self.seeks():
                 self.f.seek(i)
                 # averaging each chunk now is faster than averaging all chunks at end
-                self.spec_data.append(np.mean(self.f.read_frames(self.fft_info["sample_size"]), axis=1))
+                spec_data.append(np.mean(self.f.read_frames(self.fft_info["sample_size"]), axis=1))
 
         #print "done chunking"
         #print "fft now"
-        return np.abs(np.fft.rfft(self.spec_data))
+        return np.abs(np.fft.rfft(spec_data))
         
 import sys
 spectrumData(sys.argv[1])
