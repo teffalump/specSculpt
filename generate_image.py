@@ -4,24 +4,20 @@
     Generate the images, hopefully stitch them together into video
     Mostly, this is bezier curve code (hopefully)
 '''
-import time,cairo, math, cStringIO, sys#, array
-#from ctypes import create_string_buffer
-#buf = ''
-#output = array.array('c', '\0'*1000000)
-#output = create_string_buffer(1000000000)
+import time,cairo, math, cStringIO, sys
 output = cStringIO.StringIO()
 width = 500
 half_w = width / 2
 height = 500
 half_h = height / 2
-#svg = False
-#if svg:
-#    surface = cairo.SVGSurface(None, width, height)
-#else:
-#    #8-bit shit
-#    surface = cairo.ImageSurface(cairo.FORMAT_RGB24, width, height)
-#cxt = cairo.Context(surface)
-#
+svg = True
+if svg:
+    surface = cairo.SVGSurface(None, width, height)
+else:
+    #8-bit shit
+    surface = cairo.ImageSurface(cairo.FORMAT_RGB24, width, height)
+cxt = cairo.Context(surface)
+
 #radius is radius (in points) of circle from which amplitudes will be added
 radius = 100
 
@@ -45,9 +41,9 @@ angle_diff = math.pi*2/len(data)
 half_pi = math.pi / 2
 prevPoints=[]
 for f,j in enumerate(data):
-    #cxt.set_source_rgb(0.,0.,0.)
-    #cxt.paint()
-    #cxt.set_source_rgb(1.,1.,1.)
+    cxt.set_source_rgb(0.,0.,0.)
+    cxt.paint()
+    cxt.set_source_rgb(1.,1.,1.)
     for order, amp in enumerate(j):
         #print cxt.get_current_point()
 
@@ -72,7 +68,7 @@ for f,j in enumerate(data):
         #print (x,y)
 
         if (order == 0):
-            #cxt.move_to(x,y)
+            cxt.move_to(x,y)
             pass
 
         else:
@@ -90,22 +86,23 @@ for f,j in enumerate(data):
             cp1y = y + math.sin(prevAngle + half_pi) * bezier_width
             cp2x = prevPoints[0]["x"] + math.cos(angle - half_pi) * bezier_width
             cp2y = prevPoints[0]["y"] + math.sin(angle - half_pi) * bezier_width
-            #cxt.curve_to(cp1x, cp1y, cp2x, cp2y, prevPoints[0]["x"], prevPoints[0]["y"])
+            cxt.curve_to(cp1x, cp1y, cp2x, cp2y, prevPoints[0]["x"], prevPoints[0]["y"])
 
         #print prevPoints
     #surface.create_for_data(output, cairo.FORMAT_RGB24, width, height)
     cxt.fill()
-    try:
-        surface.write_to_png(output)
-        sys.stdout.write(output)
-        im = Image.open(StringIO.StringIO(buf))
-        print im.format, im.size, im.mode
-        #im.save(sys.stdout, "JPEG")
-    except IOError, e:
-        print "eww", e
-    #print "buffer", output
+    surface.write_to_png(sys.stdout)
+    #try:
+    #    surface.write_to_png(sys.stdout)
+    #    #sys.stdout.write(output)
+    #    #im = Image.open(StringIO.StringIO(buf))
+    #    #print im.format, im.size, im.mode
+    #    #im.save(sys.stdout, "JPEG")
+    #except IOError, e:
+    #    print "eww", e
+    ##print "buffer", output
     #time.sleep(2)
-    sys.exit(0)
+    #sys.exit(0)
     #name = str(f) + ".png"
     #surface.write_to_png("/home/cz/Programming/specSculpt/" + name)
     #cxt.save()
