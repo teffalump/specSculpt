@@ -1,1 +1,15 @@
 The bezier curve code mostly comes from http://themaninblue.com, I don't know the license, so if problems talk to me.
+
+
+Dependencies:
+
+    Python
+        -scikits.Audiolab
+        -numpy
+        -phpserialize
+
+    PHP
+        -Imagick
+
+    other
+        -ffmpeg
