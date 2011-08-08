@@ -1,5 +1,4 @@
 #!/usr/bin/python
-
 class spectrumData:
     ''' 
     class that can retrieve fft of audio file, blend it, scale it, etc 
@@ -11,7 +10,7 @@ class spectrumData:
     def __init__(self, audio_file, sample_size = 1024, fouriers_per_second = 24):
         from scikits.audiolab import Sndfile
         from math import floor
-
+        from phpserialize import dumps
         self.uri = audio_file
         self.f = Sndfile(self.uri, "r")
         self.file_info = {
@@ -31,12 +30,14 @@ class spectrumData:
                             "sample_size": sample_size,
                             "fourier_second": fouriers_per_second
                         }
+        #print len(self.seeks())
+        print dumps(self.scale(self.blend(self.fft_data())).tolist())
 
-        print self.freq_to_band()
     def bounds(self):
         ''' get bounds 
             TODO
                 simplify this shit
+                weight the splitting, such that the more common octaves are split more than the less common
         '''
         #print "determing bounds"
         import numpy as np
