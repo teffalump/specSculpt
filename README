@@ -13,3 +13,9 @@ Dependencies:
 
     other
         -ffmpeg
+        -ffmpeg2theora (maybe use something else?)
+
+THINGS TO DO:
+    -seriously optimize
+        -instead of doing all the slices at once, do ~1k or so write out file, then next ~1k, etc, then concat files together, add audio and transcode to ogv
+    -used named pipes maybe
