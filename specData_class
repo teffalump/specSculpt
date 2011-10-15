@@ -170,5 +170,5 @@ class spectrumData:
         #print "fft now"
         return np.abs(np.fft.rfft(spec_data))
         
-import sys
-spectrumData(sys.argv[1])
+from sys import argv
+spectrumData(argv[1])

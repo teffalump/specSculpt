@@ -10,7 +10,7 @@ width = 500
 half_w = width / 2
 height = 500
 half_h = height / 2
-svg = True
+svg = False
 if svg:
     surface = cairo.SVGSurface(None, width, height)
 else:
@@ -66,10 +66,8 @@ for f,j in enumerate(data):
 
         prevPoints.append({"x": x, "y": y, "amp": newAmp})
         #print (x,y)
-
         if (order == 0):
             cxt.move_to(x,y)
-            pass
 
         else:
            prevAngle = angle_diff * (order - 1) + half_pi

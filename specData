@@ -27,7 +27,7 @@ import sys
 audio_file = sys.argv[1]
 
 #total slices or w/e
-total_fouriers = 2000
+total_fouriers = 6000
 
 #the window size (i.e., number of samples) for each fft
 fourier_window = np.float(1024)

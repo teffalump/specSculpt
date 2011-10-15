@@ -5,18 +5,20 @@ $height = 600;
 $half_h = $height / 2;
 
 #radius is radius of circle from which amplitudes will be added
-$radius = 200;
+$radius = 100;
 
 #multiplier so ring doesn't look crazy out of shape
 $multiplier = min($width, $height) / 4000;
 
 #bezier width
-$bezier_width = $radius * .07;
+$bezier_width = $radius * .05;
 
 #max movement
 $max_move = .6;
 
 #DEBUG echo $multiplier
+
+# need to call specData_class and execute it
 $py_loc = "/usr/bin/python";
 $spec_loc = "specData_class";
 $audio_loc = "test.wav";
@@ -25,17 +27,17 @@ exec($command, $data);
 $data = unserialize($data[0]);
 
 #say the amp data is in data --- right now just test data
-//$test_data_lims = 1000;
-//$data = array();
-//for ($p = 0; $p < $test_data_lims; $p++)
-//    {
-//        $tmp = array();
-//        for ($x = 0; $x < 50; $x++)
-//        {
-//            $tmp[]=rand(0,255);
-//        }
-//        $data[]=$tmp;
-//    }
+#$test_data_lims = 1;
+#$data = array();
+#for ($p = 0; $p < $test_data_lims; $p++)
+#    {
+#        $tmp = array();
+#        for ($x = 0; $x < 50; $x++)
+#        {
+#            $tmp[]=rand(0,255);
+#        }
+#        $data[]=$tmp;
+#    }
 #DEBUG print_r($data);
 
 $im = new Imagick();
@@ -59,13 +61,12 @@ foreach ($data as $f => $j)
             #amplitude
             $newAmp = $j[$order] * $multiplier;
 
-            #limit max_move;
-        #    try:;
-        #        if abs(prevPoints[order-1]["amp"] - newAmp) > max_move:;
-        #            newAmp = prevPoints[order]["amp"] - max_move;
-        #    except (IndexError):;
-        #        pass;
-        #;
+            #limit max_move
+            if ($order != 0 and ($prevPoints[$order-1]["amp"] - $newAmp) > $max_move)
+                {
+                    $newAmp = abs($prevPoints[$order]["amp"] - $max_move);
+                }
+        
             #set x and y coords
             $x = $half_w + cos($angle) * ($radius + $newAmp);
             $y = $half_h + sin($angle) * ($radius + $newAmp);
