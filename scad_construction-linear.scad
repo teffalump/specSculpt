@@ -9,33 +9,37 @@ function PointAlongBez4(p0, p1, p2, p3, u) = [
 
 module BezStrip ()
 {
-amps = [1,2,4,3];
-length = 4;
+amps = [1,30,4,1,45, 1];
+length = 6;
+max_length = 100;
+step_length = max_length/(length-1);
 min_radius = 1;
 steps =100;
 for (order = [0:length-2] )
 	{
 		assign(
-				prevy=order,
+				prevy=order*step_length,
 				prevx=min_radius + amps[order],
-				y = order+1,
+				y = (order+1)*step_length,
 				x = amps[order+1] + min_radius,
-				cp1y = order + .8,
+				cp1y = (order+.8)*step_length,
 				cp1x = amps[order] + min_radius,
-				cp2y = order + .2,
+				cp2y = (order+ .2 )*step_length,
 				cp2x = amps[order + 1] + min_radius
+
+				
 			)
 		{
 			for (step = [1:steps])
 				{
-					echo(points = [[0,step/steps + order], [0,order + (step - 1)/steps], PointAlongBez4([prevx,prevy], [cp1x,cp1y], [cp2x,cp2y], [order+1,y], (step-1)/steps), PointAlongBez4([prevx,prevy], [cp1x,cp1y], [cp2x,cp2y], [order+1,y], step/steps)]);
+					//echo(points = [[0,step/steps + order], [0,order + (step - 1)/steps], PointAlongBez4([prevx,prevy], [cp1x,cp1y], [cp2x,cp2y], [order+1,y], (step-1)/steps), PointAlongBez4([prevx,prevy], [cp1x,cp1y], [cp2x,cp2y], [order+1,y], step/steps)]);
 					polygon(
-						points = [[0,step/steps + order], [0,order + (step - 1)/steps], PointAlongBez4([prevx,prevy], [cp1x,cp1y], [cp2x,cp2y], [x,order+1], (step-1)/steps), PointAlongBez4([prevx,prevy], [cp1x,cp1y], [cp2x,cp2y], [x,order+1], step/steps) ]
+						points = [[0,(step/steps + order)*step_length], [0, (order + (step - 1)/steps) * step_length], PointAlongBez4([prevx,prevy], [cp1x,cp1y], [cp2x,cp2y], [x,(order+1)*step_length], (step-1)/steps), PointAlongBez4([prevx,prevy], [cp1x,cp1y], [cp2x,cp2y], [x,(order+1)*step_length], step/steps) ]
 						);
 				}
 		}
 	}
 }
 //linear_extrude(height=1) BezStrip();
-//rotate([90,0,0]) BezStrip();
+//BezStrip();
 rotate_extrude($fn=100) BezStrip();
