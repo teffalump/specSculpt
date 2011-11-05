@@ -26,8 +26,6 @@ for (order = [0:length-2] )
 				cp1x = amps[order] + min_radius,
 				cp2y = (order+ .2 )*step_length,
 				cp2x = amps[order + 1] + min_radius
-
-				
 			)
 		{
 			for (step = [1:steps])
@@ -38,11 +36,11 @@ for (order = [0:length-2] )
                             )
 				{
 					polygon(
-						points = [[0,(step/steps + order)*step_length], 
+						points = [[0,(step/steps + order)*step_length],
                                     [0, (order + (step - 1)/steps) * step_length],
                                     initial_point, 
-                                    end_point,
-                                    step/steps ]
+                                    end_point
+                                    ]
 						);
 				}
             }
