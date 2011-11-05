@@ -42,7 +42,7 @@ for (order = [0:length-2] )
                                     [0, (order + (step - 1)/steps) * step_length],
                                     initial_point, 
                                     end_point,
-                                    step/steps) ]
+                                    step/steps ]
 						);
 				}
             }
