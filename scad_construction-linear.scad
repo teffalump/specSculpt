@@ -25,21 +25,30 @@ for (order = [0:length-2] )
 				cp1y = (order+.8)*step_length,
 				cp1x = amps[order] + min_radius,
 				cp2y = (order+ .2 )*step_length,
-				cp2x = amps[order + 1] + min_radius
+				cp2x = amps[order + 1] + min_radius,
 
 				
 			)
 		{
 			for (step = [1:steps])
+            {
+                    assign (
+                            initial_point=PointAlongBez4([prevx,prevy], [cp1x,cp1y], [cp2x,cp2y], [x,y], (step-1)/steps)
+                            end_point=PointAlongBez4([prevx,prevy], [cp1x,cp1y], [cp2x,cp2y], [x,y], step/steps)
+                            )
 				{
-					//echo(points = [[0,step/steps + order], [0,order + (step - 1)/steps], PointAlongBez4([prevx,prevy], [cp1x,cp1y], [cp2x,cp2y], [order+1,y], (step-1)/steps), PointAlongBez4([prevx,prevy], [cp1x,cp1y], [cp2x,cp2y], [order+1,y], step/steps)]);
 					polygon(
-						points = [[0,(step/steps + order)*step_length], [0, (order + (step - 1)/steps) * step_length], PointAlongBez4([prevx,prevy], [cp1x,cp1y], [cp2x,cp2y], [x,(order+1)*step_length], (step-1)/steps), PointAlongBez4([prevx,prevy], [cp1x,cp1y], [cp2x,cp2y], [x,(order+1)*step_length], step/steps) ]
+						points = [[0,(step/steps + order)*step_length], 
+                                    [0, (order + (step - 1)/steps) * step_length],
+                                    initial_point, 
+                                    end_point,
+                                    step/steps) ]
 						);
 				}
-		}
+            }
+        }
 	}
 }
 //linear_extrude(height=1) BezStrip();
-//BezStrip();
+//BezStrip()
 rotate_extrude($fn=100) BezStrip();
