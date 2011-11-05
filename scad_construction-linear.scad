@@ -25,7 +25,7 @@ for (order = [0:length-2] )
 				cp1y = (order+.8)*step_length,
 				cp1x = amps[order] + min_radius,
 				cp2y = (order+ .2 )*step_length,
-				cp2x = amps[order + 1] + min_radius,
+				cp2x = amps[order + 1] + min_radius
 
 				
 			)
@@ -33,7 +33,7 @@ for (order = [0:length-2] )
 			for (step = [1:steps])
             {
                     assign (
-                            initial_point=PointAlongBez4([prevx,prevy], [cp1x,cp1y], [cp2x,cp2y], [x,y], (step-1)/steps)
+                            initial_point=PointAlongBez4([prevx,prevy], [cp1x,cp1y], [cp2x,cp2y], [x,y], (step-1)/steps),
                             end_point=PointAlongBez4([prevx,prevy], [cp1x,cp1y], [cp2x,cp2y], [x,y], step/steps)
                             )
 				{
