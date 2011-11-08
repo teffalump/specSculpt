@@ -42,5 +42,5 @@ for (order = [0:number_amps-2] )
         }
 	}
 }
-BezLongitudinal(amps = [1,30,4,1,34,1], number_amps = 6, min_radius = 10, steps = 10, max_length = 100);
+//BezLongitudinal(amps = [1,30,4,1,34,1], number_amps = 6, min_radius = 10, steps = 10, max_length = 100);
 rotate_extrude($fn=100) BezLongitudinal(amps = [1,30,4,1,34,1], number_amps = 6, min_radius = 10, steps = 10, max_length = 100);
