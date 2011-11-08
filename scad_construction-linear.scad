@@ -32,7 +32,7 @@ for (order = [0:number_amps-2] )
                                 {
                                     polygon(
                                         points = [[0,end_point[1]],
-                                                    [0, inital_point[1]],
+                                                    [0, initial_point[1]],
                                                     initial_point, 
                                                     end_point
                                                     ]
