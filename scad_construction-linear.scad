@@ -7,15 +7,10 @@ function PointAlongBez4(p0, p1, p2, p3, u) = [
 	BEZ03(u)*p0[0]+BEZ13(u)*p1[0]+BEZ23(u)*p2[0]+BEZ33(u)*p3[0],
 	BEZ03(u)*p0[1]+BEZ13(u)*p1[1]+BEZ23(u)*p2[1]+BEZ33(u)*p3[1]];
 
-module BezStrip ()
+module BezLongitudinal (amps, number_amps, min_radius = 1, steps = 10, max_length = 100 )
 {
-amps = [1,30,4,1,45, 1];
-length = 6;
-max_length = 100;
-step_length = max_length/(length-1);
-min_radius = 1;
-steps =100;
-for (order = [0:length-2] )
+step_length = max_length/(number_amps-1);
+for (order = [0:number_amps-2] )
 	{
 		assign(
 				prevy=order*step_length,
@@ -31,22 +26,21 @@ for (order = [0:length-2] )
 			for (step = [1:steps])
             {
                     assign (
-                            initial_point=PointAlongBez4([prevx,prevy], [cp1x,cp1y], [cp2x,cp2y], [x,y], (step-1)/steps),
-                            end_point=PointAlongBez4([prevx,prevy], [cp1x,cp1y], [cp2x,cp2y], [x,y], step/steps)
+                            initial_point=PointAlongBez4([prevx,prevy], [cp1x,cp1y], [cp2x,cp2y], [x,y], (step-1)/steps) * step_length,
+                            end_point=PointAlongBez4([prevx,prevy], [cp1x,cp1y], [cp2x,cp2y], [x,y], step/steps) * step_length
                             )
-				{
-					polygon(
-						points = [[0,(step/steps + order)*step_length],
-                                    [0, (order + (step - 1)/steps) * step_length],
-                                    initial_point, 
-                                    end_point
-                                    ]
-						);
-				}
+                                {
+                                    polygon(
+                                        points = [[0,end_point[1]],
+                                                    [0, inital_point[1]],
+                                                    initial_point, 
+                                                    end_point
+                                                    ]
+                                        );
+                                }
             }
         }
 	}
 }
-//linear_extrude(height=1) BezStrip();
-//BezStrip()
-rotate_extrude($fn=100) BezStrip();
+BezLongitudinal(amps = [1,30,4,1,34,1], number_amps = 6, min_radius = 10, steps = 10, max_length = 100);
+rotate_extrude($fn=100) BezLongitudinal(amps = [1,30,4,1,34,1], number_amps = 6, min_radius = 10, steps = 10, max_length = 100);
