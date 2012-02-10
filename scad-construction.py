@@ -85,6 +85,9 @@ with open('/home/cz/Programming/specSculpt/test.scad', 'w') as out:
             h.append(np.insert(list(bezierSplinePoints(np.squeeze(v[...][:,t,0:3:2]))), 1, v[0][t][1], axis=1).tolist())
             print("done with a slice")
 
+        #generator to generate triangle->indices mapping, still work in progress
+        gen = ([(hort_l * i + j, (hort_l * (i+1) + j), (hort_l * i + j + 1))] for i in range(vert_l - 1) for j in range(hort_l))
+
         pprint(np.array(h))
         for s in np.array(h):
             for point in s:
