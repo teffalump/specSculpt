@@ -3,9 +3,6 @@
 import numpy as np
 from bezier_functions import *
 
-def random_data(length = 1000, width = 50):
-    from random import randrange as pick
-    return [[pick(0,255) for j in range(width)] for i in range(length)]
 
 from sys import exit
 test_data=random_data(2,3)
