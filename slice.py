@@ -5,7 +5,9 @@ import math
 from bezier_functions import *
 
 class slice:
-
+    '''
+        This class will generate a single slice, given amplitudes, and print out a usable scad file
+    '''
     def __init__(self, data, steps = 100, radius=20, outfile="out.scad"):
         #outfile
         self.outfile = outfile
@@ -19,13 +21,13 @@ class slice:
 
         #multiplier so ring doesn't look crazy out of shape
         #self.multiplier = min(width, height) / 400
-        self.multiplier = .5
+        self.multiplier = .1
 
         #bezier width
-        self.bezier_width = radius * .07
+        self.bezier_width = self.radius * .1
 
         #angle diff between each amplitude
-        self.angle_diff = math.pi*2/len(data)
+        self.angle_diff = math.pi*2/self.l_data
 
         self.half_pi = math.pi / 2
 
@@ -52,13 +54,10 @@ class slice:
         #    except (IndexError):
         #        pass
         #
-            #set x and y coords
-            self.x = math.cos(self.angle) * (self.radius + self.newAmp)
-            self.y = math.sin(self.angle) * (self.radius + self.newAmp)
-
-            self.prevPoints.append({"x": self.x, "y": self.y, "amp": self.newAmp})
 
             if (order == self.l_data - 1):
+                self.x = self.prevPoints[0]["x"]
+                self.y = self.prevPoints[0]["y"]
                 self.prevAngle = self.angle
                 self.angle = self.half_pi
                 self.cp1x = self.x + math.cos(self.prevAngle + self.half_pi) * self.bezier_width
@@ -70,19 +69,40 @@ class slice:
                 continue
 
             else:
+                #set x and y coords
+                self.x = math.cos(self.angle) * (self.radius + self.newAmp)
+                self.y = math.sin(self.angle) * (self.radius + self.newAmp)
+
+                #append to previous points
+                self.prevPoints.append({"x": self.x, "y": self.y, "amp": self.newAmp})
+
                 self.prevAngle = self.angle_diff * (order - 1) + self.half_pi
+
+                #determine control points
                 self.cp1x = self.prevPoints[order - 1]["x"] + math.cos(self.prevAngle + self.half_pi) * self.bezier_width
                 self.cp1y = self.prevPoints[order - 1]["y"] + math.sin(self.prevAngle + self.half_pi) * self.bezier_width
                 self.cp2x = self.x + math.cos(self.angle - self.half_pi) * self.bezier_width
                 self.cp2y = self.y + math.sin(self.angle - self.half_pi) * self.bezier_width
 
-            for i in range(self.steps+1):
-                print(pointAlongBez4([self.prevPoints[order-1]["x"],
+            for i in range(1,self.steps+1):
+                yield pointAlongBez4([self.prevPoints[order-1]["x"],
                                         self.prevPoints[order-1]["y"]],
                                         [self.cp1x, self.cp1y],
                                         [self.cp2x, self.cp2y],
                                         [self.x, self.y],
-                                        i/self.steps))
+                                        i/self.steps)
 
-a = slice([0,0,0,0])
-a.points()
+    def write_out(self):
+        '''
+            write out in scad format
+        '''
+        with open(self.outfile, "w") as fo:
+            fo.write("polygon ( points = [")
+            for i in self.points():
+                fo.write(str(i))
+                fo.write(",")
+            fo.write("]);")
+
+if __name__ == "__main__":
+    a = slice(random_data(1,30)[0])
+    a.write_out()
