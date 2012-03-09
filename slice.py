@@ -2,6 +2,7 @@
 #Generate a single slice
 
 import math
+from bezier_functions import *
 
 class slice:
 
@@ -76,26 +77,12 @@ class slice:
                 self.cp2y = self.y + math.sin(self.angle - self.half_pi) * self.bezier_width
 
             for i in range(self.steps+1):
-                print(self.pointAlongBez4([self.prevPoints[order-1]["x"],
+                print(pointAlongBez4([self.prevPoints[order-1]["x"],
                                         self.prevPoints[order-1]["y"]],
                                         [self.cp1x, self.cp1y],
                                         [self.cp2x, self.cp2y],
                                         [self.x, self.y],
                                         i/self.steps))
-
-    def BEZ03(self, u):
-        return pow((1-u), 3);
-    def BEZ13(self, u):
-        return 3*u*(pow((1-u),2));
-    def BEZ23(self, u):
-        return 3*(pow(u,2))*(1-u);
-    def BEZ33(self, u):
-        return pow(u,3);
-    def pointAlongBez4(self, p0, p1, p2, p3, u):
-        return [
-                self.BEZ03(u)*p0[0]+self.BEZ13(u)*p1[0]+self.BEZ23(u)*p2[0]+self.BEZ33(u)*p3[0],
-                self.BEZ03(u)*p0[1]+self.BEZ13(u)*p1[1]+self.BEZ23(u)*p2[1]+self.BEZ33(u)*p3[1]
-                ]
 
 a = slice([0,0,0,0])
 a.points()
