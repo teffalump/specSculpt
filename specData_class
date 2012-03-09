@@ -5,14 +5,15 @@ class spectrumData:
         REQUIRES:
             scikits.audiolab
             numpy
-
+        OPTIONAL:
+            phpserialize ---- to glue with php
     '''
-    def __init__(self, audio_file, sample_size = 1024, fouriers_per_second = 24):
+    def __init__(self, audio_file, sample_size = 1024, fouriers_per_second = 24, php=False):
         from scikits.audiolab import Sndfile
         from math import floor
-        from phpserialize import dumps
         self.uri = audio_file
         self.f = Sndfile(self.uri, "r")
+        self.php = php
         self.file_info = {
                             "channels": self.f.channels,
                             "samplerate": self.f.samplerate,
@@ -31,7 +32,16 @@ class spectrumData:
                             "fourier_second": fouriers_per_second
                         }
         #print len(self.seeks())
-        print dumps(self.scale(self.blend(self.fft_data())).tolist())
+        
+    def analysis(self):
+        '''
+            return the data
+        '''
+        if self.php:
+            from phpserialize import dumps
+            print dumps(self.scale(self.blend(self.fft_data())).tolist())
+        else:
+            return self.scale(self.blend(self.fft_data())).tolist()
 
     def bounds(self):
         ''' get bounds 
@@ -169,6 +179,7 @@ class spectrumData:
         #print "done chunking"
         #print "fft now"
         return np.abs(np.fft.rfft(spec_data))
-        
-from sys import argv
-spectrumData(argv[1])
+
+if __name__ == "__main__":
+    from sys import argv
+    spectrumData(argv[1])
