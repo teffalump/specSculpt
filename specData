@@ -1,244 +1,186 @@
-#!/usr/bin/python
-'''
-General plan:
-    use scikits.audiolab to get data bit by bit
-    fft the samples --> get the spectrum
-'''
-import numpy as np
-from scikits.audiolab import Sndfile
-import sys
-
-#### Some extra-info
-#
-# human hearing ~20hz - ~20khz
-# piano is from ~27hz to ~4200hz
-#
-####
-
-####### VARIABLES/FUNCTIONS OF DOOM
-### TODO
-###     deduce the proper variables
-###     from the file itself, instead
-###     of hardcoding them --- obviously
-###     code would need some direction, 
-###     but it is too myopic right now 
-
-#pass the uri to the script
-audio_file = sys.argv[1]
-
-#total slices or w/e
-total_fouriers = 6000
-
-#the window size (i.e., number of samples) for each fft
-fourier_window = np.float(1024)
-
-def bounds(sample_rate):
-    #TODO
-    #   fix this stuff up, ugly, slow, stupid
-    #
-    # define ranges of frequencies (hz) to blend
-    # basically, blend logarithmically
-    # find splits for x octaves below nyquist
-    # split some in 2 or 3, to have fineness
-    # but also not too many bands
-
-    octaves = 12
-    ny = sample_rate / 2
-    
-    bounds = []
-    for i in range(octaves):
-        b = [ny / np.power(2,octaves-i), ny / np.power(2,octaves - 1 - i)]
-
-        #split/combine some octaves
-        # octave 4 in 2
-        # octave 5 - 7 in 3
-        if i == 4:
-            mid = (b[0] + b[1])/2
-            bounds.extend([[b[0], mid], [mid, b[1]]])
-            continue
-        if i in (5,6,7):
-            d = (b[1] - b[0]) / 3
-            l = b[0] + d
-            u = b[0] + 2 * d
-            bounds.extend([[b[0], l], [l, u], [u, b[1]]])
-            continue
+#!/usr/bin/python2
+class spectrumData:
+    ''' 
+    class that can retrieve fft of audio file, blend it, scale it, etc 
+        REQUIRES:
+            scikits.audiolab
+            numpy
+        OPTIONAL:
+            phpserialize ---- to glue with php
+    '''
+    def __init__(self, audio_file, sample_size = 1024, fouriers_per_second = 24, php=False):
+        from scikits.audiolab import Sndfile
+        from math import floor
+        self.uri = audio_file
+        self.f = Sndfile(self.uri, "r")
+        self.php = php
+        self.file_info = {
+                            "channels": self.f.channels,
+                            "samplerate": self.f.samplerate,
+                            "total_frames": self.f.nframes,
+                            "time_length": self.f.nframes / float(self.f.samplerate),
+                            "nyquist": self.f.samplerate / 2
+                         }
+        self.bands_info = {
+                            "bandwidth":  self.f.samplerate / float(sample_size),
+                            "octaves": 12,
+                            "divisions_per_octave": 3
+                         }
+        self.fft_info = {
+                            "total_fouriers": int(floor(fouriers_per_second * (self.f.nframes / float(self.f.samplerate)))),
+                            "sample_size": sample_size,
+                            "fourier_second": fouriers_per_second
+                        }
+        #print len(self.seeks())
         
-        bounds.append(b)
+    def analysis(self):
+        '''
+            return the data
+        '''
+        if self.php:
+            from phpserialize import dumps
+            print dumps(self.scale(self.blend(self.fft_data())).tolist())
+        else:
+            return self.scale(self.blend(self.fft_data())).tolist()
 
-        #start at zero -- this is stupid code but w/e
-        bounds[0][0] = 0
-                
-    return bounds
+    def bounds(self):
+        ''' get bounds 
+            TODO
+                simplify this shit
+                weight the splitting, such that the more common octaves are split more than the less common
+        '''
+        #print "determing bounds"
+        import numpy as np
+        #octave bounds -- no splits
+        naive_bounds = [ [self.file_info["nyquist"] / np.power(2, self.bands_info["octaves"]-i), self.file_info["nyquist"]  / np.power(2, self.bands_info["octaves"]- 1 - i)] 
+                                for i in range(self.bands_info["octaves"])]
 
-def freqs(sample_size, sample_rate):
-    #center frequency for each index
+        #start at zero;this (everything after) is stupid code but w/e
+        naive_bounds[0][0] = 0
 
-    f = np.true_divide(sample_rate, sample_size) #bandwidth
-    p=[k * f for k in range(int((sample_size / 2) + 1))]
-    return p
+        #split octaves into <division_per_octave> parts
+        bounds = []
+        for i in zip(np.amin(naive_bounds, axis=1),
+                    np.true_divide(
+                                    np.ptp(naive_bounds, axis=1), 
+                                    self.bands_info["divisions_per_octave"])):
 
-def freq_to_bound(sample_size, sample_rate):
-    #now I need to determine for the indices where they belong in the bounds
-    # basically, a mapping of fft index to blended band index
-
-    # really stupid way to do this, but wtf, I suck at coding
-    # TODO
-    #   optimize, unnecessary tests
-    indices=[]
-    for j,bound in enumerate(bounds(sample_rate)):
-        inds = []
-        for i,freq in enumerate(freqs(sample_size, sample_rate)):
-            if bound[0] <= freq <= bound[1]:
-                #print freq, "w/i", bound[0], "and", bound[1]
-                #print "--> therefore,", i, "in", j
-                inds.append(i)
-            if freq > bound[1]:
-                break
-        indices.append(inds)
-
-    return indices
-
-####### END VARIABLES/FUNCTIONS OF DOOM
+            for j in range(self.bands_info["divisions_per_octave"]):
+                bounds.append([i[0] + (j * i[1]), i[0] + ( (j + 1) * i[1])])
 
 
-########### GET THE AUDIO DATA
+        #print "bounds done"
+        return np.asarray(np.rint(bounds), dtype=int)
 
-f = Sndfile(audio_file, "r")
+    def freqs(self):
+        '''frequency band for each index'''
+        a = []
+        diff = self.bands_info["bandwidth"] / 2
+        for k in range(self.fft_info["sample_size"] / 2 + 1):
+            center = k * self.bands_info["bandwidth"]
+            if center == 0:
+                a.append( [0, diff] )
+            elif center == self.file_info["nyquist"]:
+                a.append( [ self.file_info["nyquist"] - diff, self.file_info["nyquist"] ] )
+            else:
+                a.append( [center - diff, center + diff] )
+        return a
 
-# some germane
-# f properties..
-    #   samplerate = samplerate of the file
-    #   nframes = total number of frames in the file
-    #   channels = number of channels in the file
-#   methods...
-    #   read_frames(x) = read x number of frames, moves index
-    #   seek(x) = move to frame number x
+    def seeks(self):
+        ''' determine seek indices '''
+        step = int(self.file_info["total_frames"] // self.fft_info["total_fouriers"])
+        return [k * step for k in range(self.fft_info["total_fouriers"])]
 
-#length of file (in secs) very rough
-time_length = f.nframes / f.samplerate
+    def scale(self, data, lim = 255):
+        ''' 
+        scale values to between 0-lim
 
-# fouriers per second of sample
-fouriers_per_second = total_fouriers / time_length
+        '''
+        import numpy as np
 
-#frame step between each fft
-fourier_step = np.floor_divide(f.nframes, total_fouriers)
+        scale = lim / np.amax(data) #denominator is (high - low) but low = 0 ~
+        
+        return np.asarray(np.round(np.multiply(data,scale)),dtype=int)
 
-##### print the info, if one wants
-#print "samplerate:",f.samplerate
-#print "total frames:",f.nframes
-#print "window_size:",fourier_window
-#print "# of ffts:", total_fouriers
-#print "step:",fourier_step
-#print "length:", time_length, "seconds"
-#####
-
-# go through parts of file, chunk by chunk, with seeks
-# TODO
-#   optimize, this is the slow part
-print "starting audio chunking"
-i=0
-spec_data = []
-for window in range(total_fouriers):
-    f.seek(i)
-    if f.channels == 1:
-        chunk = f.read_frames(fourier_window)
-
-    else:
-        #average the channels
-        chunk = np.mean(f.read_frames(fourier_window), axis=1)
-
-    spec_data.append(chunk)
-    i+=fourier_step
-
-##### Have spectrum audio data in array, yay!!!!
-
-print "finished audio retrieval, fft now"
-# fft it and take its abs
-fft_data = np.abs(np.fft.rfft(spec_data))
-print "fft done"
-
-##### Now we need to blend into bands
-# average for each fft
-print "blending starting"
-a = []
-for s in freq_to_bound(fourier_window, f.samplerate):
-    #TODO 
-    #   i can (should?) append zeros if no frequency center
-    #   is in the band, however that doesn't mean
-    #   there isn't some spectral density...
-    #   i'll think about it if i ever want to change this
-    #   since i should use the bandwidth function to see how
-    #   wide (in hz) the spectral data is and then intelligently
-    #   add it to 1+ bands, if it spills over into other blended bands
-    if s:
-        a.append( 
-                    #average every fft between bounds
-                    np.mean(
-                        fft_data[...,s[0]:s[-1]+1], 
-                        axis=1
-                        )
-                    )
-    else:
-       #a.append(
-       #            #add zeroes since no data in that band 
-       #            np.zeros(( total_fouriers,))
-       #        )
-        continue
+    def freq_to_band(self):
+        ''' 
+        I need to determine for the indices where they belong in the bounds
+        basically, a mapping of fft index to blended band index
 
 
-# join the averages
-a = np.dstack(a)[0]
-print "done blending"
+         really stupid way to do this, but wtf, I suck at coding
+         TODO
+           -optimize --> eliminate unnecessary tests, etc
+        '''
+        #print "starting freq_to_band"
+        indices=[]
+        for j,bound in enumerate(self.bounds()):
+            inds = []
+            for i,freq in enumerate(self.freqs()):
+                #if freq range subsumes/subset of bound
+                # add it to that index
+                if bound[0] <= freq[0] <= bound[1] \
+                    or bound[0] <= freq[1] <= bound[1] \
+                    or (freq[0] <= bound[0] and freq[1] >= bound[1]):
+                    #print freq, "w/i", bound[0], "and", bound[1]
+                    #print "--> therefore,", i, "in", j
+                    inds.append(i)
+                if freq[0] > bound[1]:
+                    break
+            indices.append(inds)
 
-##### this previous part was hard to explain w/o some visuals 
+        #print "done freq_to_band"
+        return indices
 
-##### we are going to write to a file
-#import json
-from StringIO import StringIO
-fp = StringIO()
+    def blend(self, data):
+        '''
+        using freq_to_band info, blend data into bands
+        '''
+        import numpy as np
+        #print "starting blending"
+        a = []
+        for s in self.freq_to_band():
+            if s:
+                a.append( 
+                            #average every fft between bounds
+                            np.mean(
+                                data[...,s[0]:s[-1]+1], 
+                                axis=1
+                                )
+                            )
+            else:
+               #a.append(
+               #           #add zeroes since no data in that band 
+               #            np.zeros(( self.fft_info["total_fouriers"],))
+               #        )
+                continue
 
-# write part of desired format, 
-# probably can do this through json.dump
-# but i'm just copying that stupid non-json shit
-fp.write("data[0] = {title: 'blar', timecode: [")
 
-# calculate very roughly millisecond difference b/w each sample
-time_step = np.reciprocal(np.float(fouriers_per_second)) * 1000
-#print time_step, "ms b/w each sampling"
+        # join the averages
+        #print "done blending"
+        return np.dstack(a)[0]
 
-# time window for each sample set (in ms)
-window_time = (time_length / fourier_window) * 1000
-#print window_time, "ms for each sample set"
 
-#find max value and scale ratio in fft, needed for scaling
-high=np.amax(a)
-scale = 255 / high # (high - low) but low = 0, more or less
+    def fft_data(self):
+        '''return abs fft of audio data'''
+        import numpy as np
+        #print "chunking"
+        spec_data = []
+        if self.file_info["channels"] == 1:
+            for i in self.seeks():
+                self.f.seek(i)
+                spec_data.append(self.f.read_frames(self.fft_info["sample_size"]))
+        else:
+            for i in self.seeks():
+                self.f.seek(i)
+                # averaging each chunk now is faster than averaging all chunks at end
+                spec_data.append(np.mean(self.f.read_frames(self.fft_info["sample_size"]), axis=1))
 
-center = window_time / 2
+        #print "done chunking"
+        #print "fft now"
+        return np.abs(np.fft.rfft(spec_data))
 
-for k,v in enumerate(a):
-    # calculte time (in ms) for each sample
-    time = int(np.floor((k * time_step) + center))
-    #print time, "milliseconds"
-
-    #scale values to between 0-255
-    tmp = np.multiply(v, scale)
-    tmp = np.round(tmp)
-    tmp = np.asarray(tmp,dtype=int)
-
-    # write to file object
-    fp.write('{t:' + str(time) + ',p:' + str(tmp.tolist()) + '}')
-    if k == len(a) - 1:
-        continue
-    else:
-        fp.write(',')
-
-fp.write("]};")
-contents = fp.getvalue()
-fp.close()
-
-# write to file
-with open("/home/cz/d.txt", "w") as p:
-    p.write(contents)
-
-##### Done writing to file
+if __name__ == "__main__":
+    from sys import argv
+    a=spectrumData(argv[1])
+    print a.analysis()
